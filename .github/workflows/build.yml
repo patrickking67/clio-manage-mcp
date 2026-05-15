@@ -21,6 +21,10 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run lint
       - run: npm run build
+      - name: Protocol smoke test (stdio)
+        run: npm run smoke:stdio
+      - name: Protocol smoke test (http)
+        run: npm run smoke:http
 
   docker:
     runs-on: ubuntu-latest

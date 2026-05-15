@@ -24,6 +24,8 @@
     "start": "node build/index.js",
     "lint": "tsc --noEmit",
     "test": "node --test --import tsx 'src/**/*.test.ts'",
+    "smoke:stdio": "node scripts/smoke-stdio.mjs",
+    "smoke:http": "node scripts/smoke-http.mjs",
     "inspector": "npx -y @modelcontextprotocol/inspector node build/index.js",
     "clean": "rimraf build"
   },
@@ -55,6 +57,6 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/divergeit/clio-mcp.git"
+    "url": "git+https://github.com/patrickking67/clio-mcp.git"
   }
 }

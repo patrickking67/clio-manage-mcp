@@ -59,17 +59,18 @@ param minReplicas int = 1
 param maxReplicas int = 4
 
 // ---------- naming ----------------------------------------------------------
-var resourceSuffix = toLower(replace(environmentName, '_', ''))
-var nameBase = 'cliomcp-${resourceSuffix}'
-
-// Storage account names: 3-24 chars, lowercase, no hyphens.
-var storageAccountName = toLower(substring(replace('cliomcp${resourceSuffix}', '-', ''), 0, min(24, length(replace('cliomcp${resourceSuffix}', '-', '')))))
-
-// ACR names: 5-50 chars, alphanumeric only.
-var acrName = toLower(substring(replace('cliomcpacr${resourceSuffix}', '-', ''), 0, min(50, length(replace('cliomcpacr${resourceSuffix}', '-', '')))))
-
-// Key Vault names: 3-24, alphanumeric+hyphens.
-var keyVaultName = take('kv-${nameBase}', 24)
+// `environmentName` is the azd instance discriminator. We derive deterministic
+// per-resource names from it, respecting Azure naming rules:
+//   - ACR:           5-50 chars, alphanumeric only.
+//   - Storage:       3-24 chars, lowercase alphanumeric.
+//   - Key Vault:     3-24 chars, alphanumeric + hyphens, starts with letter.
+//   - Other:         we use a `cliomcp-${suffix}` base.
+// `take()` caps length without erroring on short inputs.
+var resourceSuffix = toLower(replace(replace(environmentName, '_', ''), '-', ''))
+var nameBase = 'cliomcp-${take(resourceSuffix, 14)}'
+var storageAccountName = take('cliomcp${resourceSuffix}', 24)
+var acrName = take('cliomcpacr${resourceSuffix}', 50)
+var keyVaultName = take('kv-cliomcp-${resourceSuffix}', 24)
 
 // ---------- Log Analytics + App Insights ------------------------------------
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
