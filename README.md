@@ -4,12 +4,27 @@
 [![Node ≥ 20](https://img.shields.io/badge/node-%E2%89%A520-339933.svg)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6.svg)](https://www.typescriptlang.org)
 [![MCP](https://img.shields.io/badge/MCP-1.x-7c3aed.svg)](https://modelcontextprotocol.io)
-[![Azure Container Apps](https://img.shields.io/badge/Azure-Container%20Apps-0078d4.svg)](https://learn.microsoft.com/en-us/azure/container-apps/)
+[![Build](https://github.com/patrickking67/clio-mcp/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/patrickking67/clio-mcp/actions/workflows/build.yml)
 [![Status: beta](https://img.shields.io/badge/status-beta-orange.svg)](#roadmap)
 
 > A Model Context Protocol server for **Clio Manage** — built to run firm-wide
 > on Azure Container Apps, with a fully-featured local stdio path for
 > development and single-user installs. Same binary, two transports.
+
+**Built with**
+
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-5FA04E?style=for-the-badge&logo=nodedotjs&logoColor=white)
+![Microsoft Azure](https://img.shields.io/badge/Microsoft_Azure-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white)
+![Container Apps](https://img.shields.io/badge/Container_Apps-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+![Bicep](https://img.shields.io/badge/Bicep-519aba?style=for-the-badge&logoColor=white)
+![Express](https://img.shields.io/badge/Express-000000?style=for-the-badge&logo=express&logoColor=white)
+![Anthropic](https://img.shields.io/badge/Anthropic-191919?style=for-the-badge&logo=anthropic&logoColor=white)
+![Claude](https://img.shields.io/badge/Claude-D97757?style=for-the-badge&logo=anthropic&logoColor=white)
+![Clio](https://img.shields.io/badge/Clio_Manage_v4-2D3B4D?style=for-the-badge)
+![OAuth 2.0](https://img.shields.io/badge/OAuth_2.0-EB5424?style=for-the-badge&logo=oauth&logoColor=white)
+![AES-256-GCM](https://img.shields.io/badge/AES--256--GCM-1a7f37?style=for-the-badge&logo=keepassxc&logoColor=white)
 
 This server is the boundary between an AI agent (Claude or any
 MCP-compatible client) and your firm's Clio Manage instance. It speaks Clio
@@ -177,6 +192,38 @@ Resources provisioned by [`infra/main.bicep`](infra/main.bicep):
 | Azure Storage + File Share           | Persistent `/state` mount (tokens.enc + audit.log)       |
 | Container Apps environment           | Hosts the workload, file share registered                |
 | Container App                        | HTTPS ingress, autoscale 1→4 by default                  |
+
+### Request lifecycle
+
+What happens when an agent invokes a tool — bearer-auth, token refresh,
+Clio call, and audit log, end-to-end:
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant H as MCP host<br/>(Claude / agent)
+  participant S as Container App<br/>/mcp endpoint
+  participant T as Tool handler
+  participant K as Token cache<br/>(/state/tokens.enc)
+  participant C as Clio v4 API
+  participant A as Audit log<br/>(/state/audit.log)
+
+  H->>+S: POST /mcp · Bearer <token><br/>{ method: tools/call, name, args }
+  S->>S: timingSafeEqual(sha256(token), accept[])
+  Note right of S: 401 on mismatch
+  S->>+T: dispatch · Zod-validated args
+  T->>K: get access token
+  alt token expired (or within 60s)
+    K->>+C: POST /oauth/token (refresh_token)
+    C-->>-K: new access + refresh
+    K->>K: re-encrypt blob<br/>(AES-256-GCM)
+  end
+  T->>+C: GET/POST /api/v4/... · Bearer <access>
+  C-->>-T: { data, meta }
+  T-->>-S: tool result
+  S->>A: append { ts, tool, outcome, duration_ms,<br/>user_id, matter_id, result_count, transport, caller_id }
+  S-->>-H: JSON-RPC result
+```
 
 ---
 
