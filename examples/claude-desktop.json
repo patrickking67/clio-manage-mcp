@@ -1,0 +1,17 @@
+{
+  "_comment": "Drop the `clio` entry into your Claude Desktop config at: ~/Library/Application Support/Claude/claude_desktop_config.json (mac) or %APPDATA%/Claude/claude_desktop_config.json (windows)",
+  "mcpServers": {
+    "clio": {
+      "command": "node",
+      "args": ["/absolute/path/to/clio-mcp/build/index.js", "--stdio"],
+      "env": {
+        "CLIO_CLIENT_ID": "<from Clio Developer Application>",
+        "CLIO_CLIENT_SECRET": "<from Clio Developer Application>",
+        "CLIO_REGION": "us",
+        "CLIO_ENCRYPTION_KEY": "<64-char hex; node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\">",
+        "CLIO_AUDIT_MODE": "metadata",
+        "CLIO_ALLOW_DESTRUCTIVE": "false"
+      }
+    }
+  }
+}

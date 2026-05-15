@@ -1,0 +1,33 @@
+# Local HTTP-mode runner for development against a real Clio account.
+#
+#   docker compose up --build
+#
+# State (tokens.enc, audit.log) is persisted to the named volume `clio-state`,
+# mirroring the Azure Files mount used in production.
+services:
+  clio-mcp:
+    build: .
+    image: clio-mcp:local
+    container_name: clio-mcp
+    ports:
+      - "8765:8765"
+    environment:
+      CLIO_TRANSPORT: http
+      CLIO_HTTP_HOST: 0.0.0.0
+      CLIO_HTTP_PORT: 8765
+      CLIO_REGION: ${CLIO_REGION:-us}
+      CLIO_CLIENT_ID: ${CLIO_CLIENT_ID:?missing}
+      CLIO_CLIENT_SECRET: ${CLIO_CLIENT_SECRET:?missing}
+      CLIO_ENCRYPTION_KEY: ${CLIO_ENCRYPTION_KEY:?missing}
+      CLIO_HTTP_AUTH_TOKENS: ${CLIO_HTTP_AUTH_TOKENS:-}
+      CLIO_AUDIT_MODE: ${CLIO_AUDIT_MODE:-metadata}
+      CLIO_ALLOW_DESTRUCTIVE: ${CLIO_ALLOW_DESTRUCTIVE:-false}
+      CLIO_DEFAULT_USER_ID: ${CLIO_DEFAULT_USER_ID:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      CLIO_STATE_DIR: /state
+    volumes:
+      - clio-state:/state
+    restart: unless-stopped
+
+volumes:
+  clio-state:

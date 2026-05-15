@@ -1,0 +1,41 @@
+# Build output
+build/
+dist/
+*.tsbuildinfo
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Secrets / state
+.clio-mcp/
+tokens.enc
+*.pem
+*.key
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Test/coverage
+coverage/
+.nyc_output/
+
+# Azure
+.azure/
+azure.yaml.bak
+
+# Logs
+*.log
+logs/

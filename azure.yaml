@@ -1,0 +1,45 @@
+# Azure Developer CLI (azd) project definition.
+#
+#   azd auth login
+#   azd up        # provisions infra + builds + deploys
+#
+# After provisioning, populate Key Vault with secrets (see docs/deployment-azure.md):
+#   - clio-client-id
+#   - clio-client-secret
+#   - clio-encryption-key  (64-char hex)
+#   - clio-refresh-token   (seeded from a one-time local OAuth dance)
+#   - clio-http-auth-tokens (comma-separated bearer tokens)
+
+name: clio-mcp
+metadata:
+  template: clio-mcp@0.1.0
+
+services:
+  api:
+    project: .
+    language: ts
+    host: containerapp
+    docker:
+      path: ./Dockerfile
+      context: .
+
+infra:
+  provider: bicep
+  path: infra
+  module: main
+
+hooks:
+  postprovision:
+    shell: sh
+    continueOnError: false
+    interactive: false
+    run: |
+      echo ""
+      echo "Provisioning complete."
+      echo ""
+      echo "Next steps:"
+      echo "  1. Populate Key Vault with secrets — see docs/deployment-azure.md."
+      echo "  2. Configure Clio Developer Application redirect URI:"
+      echo "       http://127.0.0.1:5678/callback   (for the one-time local OAuth)"
+      echo "  3. Run the local OAuth dance once and seed clio-refresh-token from the result."
+      echo ""

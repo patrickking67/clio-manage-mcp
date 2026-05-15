@@ -1,0 +1,60 @@
+{
+  "name": "@divergeit/clio-mcp",
+  "version": "0.1.0",
+  "description": "Model Context Protocol server for Clio Manage v4 — local stdio and Azure Container Apps deployments.",
+  "type": "module",
+  "bin": {
+    "clio-mcp": "build/index.js"
+  },
+  "main": "build/index.js",
+  "files": [
+    "build",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && chmod +x build/index.js",
+    "dev:stdio": "tsx watch src/index.ts --stdio",
+    "dev:http": "tsx watch src/index.ts --http",
+    "start:stdio": "node build/index.js --stdio",
+    "start:http": "node build/index.js --http",
+    "start": "node build/index.js",
+    "lint": "tsc --noEmit",
+    "test": "node --test --import tsx 'src/**/*.test.ts'",
+    "inspector": "npx -y @modelcontextprotocol/inspector node build/index.js",
+    "clean": "rimraf build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "open": "^10.1.0",
+    "undici": "^7.2.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.5",
+    "rimraf": "^6.0.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "clio",
+    "clio-manage",
+    "legal-tech",
+    "anthropic",
+    "claude",
+    "azure"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/divergeit/clio-mcp.git"
+  }
+}

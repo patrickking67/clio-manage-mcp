@@ -1,0 +1,15 @@
+{
+  "_comment": "Append the `clio` entry to ~/.claude/settings.json under mcpServers.",
+  "mcpServers": {
+    "clio": {
+      "command": "node",
+      "args": ["/absolute/path/to/clio-mcp/build/index.js", "--stdio"],
+      "env": {
+        "CLIO_CLIENT_ID": "<from Clio>",
+        "CLIO_CLIENT_SECRET": "<from Clio>",
+        "CLIO_REGION": "us",
+        "CLIO_ENCRYPTION_KEY": "<64-char hex>"
+      }
+    }
+  }
+}
