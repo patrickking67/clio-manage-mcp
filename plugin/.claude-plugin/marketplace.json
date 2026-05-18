@@ -1,0 +1,23 @@
+{
+  "name": "clio-manage",
+  "owner": {
+    "name": "DivergeIT",
+    "url": "https://github.com/patrickking67"
+  },
+  "plugins": [
+    {
+      "name": "clio-manage",
+      "source": ".",
+      "description": "Skills + agents + MCP for working with Clio Manage v4 from Claude Code. Includes matter intake, time entry, billing, document automation, and best-practice guidance.",
+      "version": "0.1.0",
+      "category": "legal",
+      "tags": [
+        "clio",
+        "legal",
+        "practice-management",
+        "billing",
+        "matters"
+      ]
+    }
+  ]
+}

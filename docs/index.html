@@ -1,0 +1,792 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Clio Manage MCP — Claude-native automation for Clio</title>
+    <meta
+      name="description"
+      content="A Model Context Protocol server, Claude Code plugin, and skill library for Clio Manage. Run firm-wide on Azure Container Apps or locally over stdio. OAuth 2.0, AES-256-GCM token-at-rest, append-only audit log."
+    />
+    <meta property="og:title" content="Clio Manage MCP" />
+    <meta
+      property="og:description"
+      content="The boundary between Claude and your firm's Clio Manage. MCP server + Claude Code plugin + 10 skills + 2 agents."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://patrickking67.github.io/clio-manage-mcp/" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+    <link rel="preconnect" href="https://rsms.me" />
+    <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+    <script src="https://cdn.tailwindcss.com?plugins=typography,forms"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'sans-serif'],
+              mono: [
+                'ui-monospace',
+                'SFMono-Regular',
+                'Menlo',
+                'Monaco',
+                'Consolas',
+                'monospace',
+              ],
+            },
+            colors: {
+              brand: {
+                50: '#eef2ff',
+                100: '#e0e7ff',
+                200: '#c7d2fe',
+                300: '#a5b4fc',
+                400: '#818cf8',
+                500: '#6366f1',
+                600: '#4f46e5',
+                700: '#4338ca',
+                800: '#3730a3',
+                900: '#312e81',
+              },
+              clio: {
+                navy: '#2D3B4D',
+                accent: '#E2725B',
+              },
+            },
+            boxShadow: {
+              glow: '0 0 40px -10px rgb(99 102 241 / 0.5)',
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      :root {
+        font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+      }
+      .gradient-text {
+        background: linear-gradient(135deg, #818cf8 0%, #c084fc 50%, #f472b6 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      .hero-glow::before {
+        content: '';
+        position: absolute;
+        inset: -2rem;
+        background: radial-gradient(60% 50% at 50% 0%, rgb(99 102 241 / 0.25), transparent 70%);
+        pointer-events: none;
+        z-index: -1;
+      }
+      pre,
+      code {
+        font-feature-settings: normal;
+      }
+      .grid-bg {
+        background-image: linear-gradient(rgb(255 255 255 / 0.04) 1px, transparent 1px),
+          linear-gradient(90deg, rgb(255 255 255 / 0.04) 1px, transparent 1px);
+        background-size: 32px 32px;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-slate-950 text-slate-200 antialiased font-sans selection:bg-brand-500/40 selection:text-white"
+  >
+    <!-- top nav -->
+    <header class="sticky top-0 z-40 backdrop-blur bg-slate-950/70 border-b border-slate-800/50">
+      <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <a href="#" class="flex items-center gap-2 group">
+          <span class="grid place-items-center w-8 h-8 rounded-lg bg-brand-600/20 ring-1 ring-brand-500/40 text-brand-300 font-bold">C</span>
+          <span class="font-semibold tracking-tight">Clio Manage MCP</span>
+          <span class="ml-2 hidden sm:inline-block text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 ring-1 ring-amber-500/30">beta</span>
+        </a>
+        <nav class="hidden md:flex items-center gap-7 text-sm text-slate-400">
+          <a href="#features" class="hover:text-white transition">Features</a>
+          <a href="#tools" class="hover:text-white transition">Tools</a>
+          <a href="#install" class="hover:text-white transition">Install</a>
+          <a href="#plugin" class="hover:text-white transition">Plugin</a>
+          <a href="#connectors" class="hover:text-white transition">Connectors</a>
+          <a href="#security" class="hover:text-white transition">Security</a>
+          <a href="#faq" class="hover:text-white transition">FAQ</a>
+        </nav>
+        <div class="flex items-center gap-3">
+          <a
+            href="https://github.com/patrickking67/clio-manage-mcp"
+            class="text-sm font-medium px-3 py-1.5 rounded-lg ring-1 ring-slate-700 hover:ring-slate-500 hover:bg-slate-800/50 transition flex items-center gap-2"
+          >
+            <svg viewBox="0 0 24 24" class="w-4 h-4 fill-current"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.604-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.31.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.02 10.02 0 0 0 22 12.017C22 6.484 17.522 2 12 2Z"/></svg>
+            GitHub
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <!-- hero -->
+    <section class="relative isolate overflow-hidden">
+      <div class="absolute inset-0 grid-bg opacity-60 [mask-image:radial-gradient(ellipse_at_top,black,transparent_70%)] pointer-events-none"></div>
+      <div class="max-w-7xl mx-auto px-6 pt-16 pb-20 sm:pt-24 sm:pb-28 relative">
+        <div class="hero-glow relative max-w-3xl">
+          <div class="inline-flex items-center gap-2 text-xs font-medium px-3 py-1 rounded-full bg-brand-500/10 ring-1 ring-brand-500/30 text-brand-200 mb-6">
+            <span class="w-1.5 h-1.5 rounded-full bg-brand-400 animate-pulse"></span>
+            MCP server + Claude Code plugin · OAuth 2.0 · ABA Op 512 audit
+          </div>
+          <h1 class="text-4xl sm:text-6xl font-bold tracking-tight text-white leading-[1.05]">
+            Claude-native automation
+            <br />
+            for <span class="gradient-text">Clio Manage.</span>
+          </h1>
+          <p class="mt-6 text-lg text-slate-300 leading-relaxed max-w-2xl">
+            A Model Context Protocol server, a Claude Code plugin, and ten skills that
+            put your firm's matters, contacts, time, billing, calendar, and documents
+            one prompt away. Run firm-wide on Azure Container Apps or locally over
+            stdio. Same binary, two transports.
+          </p>
+          <div class="mt-8 flex flex-wrap items-center gap-3">
+            <a
+              href="#install"
+              class="inline-flex items-center gap-2 rounded-lg bg-brand-500 hover:bg-brand-400 px-5 py-3 text-sm font-semibold text-white shadow-glow transition"
+            >
+              Get started
+              <svg viewBox="0 0 20 20" class="w-4 h-4 fill-current"><path d="M10.293 3.293a1 1 0 0 1 1.414 0l6 6a1 1 0 0 1 0 1.414l-6 6a1 1 0 0 1-1.414-1.414L14.586 11H3a1 1 0 1 1 0-2h11.586l-4.293-4.293a1 1 0 0 1 0-1.414Z"/></svg>
+            </a>
+            <a
+              href="#plugin"
+              class="inline-flex items-center gap-2 rounded-lg ring-1 ring-slate-700 hover:ring-slate-500 px-5 py-3 text-sm font-semibold text-slate-200 hover:bg-slate-800/50 transition"
+            >
+              Install the plugin
+            </a>
+            <a
+              href="https://github.com/patrickking67/clio-manage-mcp"
+              class="inline-flex items-center gap-2 px-3 py-3 text-sm font-medium text-slate-400 hover:text-white transition"
+            >
+              Read the source →
+            </a>
+          </div>
+
+          <!-- stats -->
+          <dl class="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-6">
+            <div>
+              <dt class="text-xs uppercase tracking-wider text-slate-500">Tools</dt>
+              <dd class="mt-1 text-2xl font-bold text-white">41</dd>
+            </div>
+            <div>
+              <dt class="text-xs uppercase tracking-wider text-slate-500">Skills</dt>
+              <dd class="mt-1 text-2xl font-bold text-white">10</dd>
+            </div>
+            <div>
+              <dt class="text-xs uppercase tracking-wider text-slate-500">Agents</dt>
+              <dd class="mt-1 text-2xl font-bold text-white">2</dd>
+            </div>
+            <div>
+              <dt class="text-xs uppercase tracking-wider text-slate-500">Clio regions</dt>
+              <dd class="mt-1 text-2xl font-bold text-white">US · CA · EU · AU</dd>
+            </div>
+          </dl>
+        </div>
+
+        <!-- prompt demo -->
+        <div class="mt-16 relative">
+          <div class="absolute -inset-1 rounded-2xl bg-gradient-to-br from-brand-500/20 via-fuchsia-500/10 to-pink-500/20 blur-xl"></div>
+          <div class="relative rounded-2xl ring-1 ring-slate-800 bg-slate-900/70 overflow-hidden backdrop-blur">
+            <div class="flex items-center gap-2 px-5 py-3 border-b border-slate-800 text-xs text-slate-400">
+              <span class="w-3 h-3 rounded-full bg-red-500/60"></span>
+              <span class="w-3 h-3 rounded-full bg-amber-500/60"></span>
+              <span class="w-3 h-3 rounded-full bg-emerald-500/60"></span>
+              <span class="ml-3 font-mono">claude — clio-manage</span>
+            </div>
+            <div class="p-6 sm:p-8 font-mono text-sm leading-relaxed grid sm:grid-cols-2 gap-x-10 gap-y-4">
+              <div>
+                <span class="text-slate-500">›</span>
+                <span class="text-white">Open a new matter for Jane Smith</span><br />
+                <span class="ml-3 text-slate-400">— landlord/tenant, flat fee $2,500.</span><br />
+                <span class="ml-3 text-slate-400">Add an opening note and an intake task due Friday.</span>
+              </div>
+              <div class="text-slate-400">
+                <span class="text-brand-300">✓</span> clio_search_contacts (no dup)<br />
+                <span class="text-brand-300">✓</span> clio_create_person_contact<br />
+                <span class="text-brand-300">✓</span> clio_create_matter (flat-fee patch)<br />
+                <span class="text-brand-300">✓</span> clio_create_note<br />
+                <span class="text-brand-300">✓</span> clio_create_task<br />
+                <span class="text-emerald-400">→ matter #4892 opened</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- features -->
+    <section id="features" class="border-t border-slate-800/50">
+      <div class="max-w-7xl mx-auto px-6 py-20">
+        <h2 class="text-3xl sm:text-4xl font-bold tracking-tight text-white">
+          What's in the box
+        </h2>
+        <p class="mt-3 text-slate-400 max-w-2xl">
+          Three layers, all in one repo. Use as much or as little as you need.
+        </p>
+
+        <div class="mt-12 grid md:grid-cols-3 gap-6">
+          <!-- MCP -->
+          <div class="rounded-2xl ring-1 ring-slate-800 bg-slate-900/40 p-7 hover:ring-brand-500/40 transition group">
+            <div class="w-11 h-11 rounded-xl bg-brand-500/15 ring-1 ring-brand-500/30 grid place-items-center text-brand-300 mb-5">
+              <svg viewBox="0 0 24 24" class="w-6 h-6 fill-current"><path d="M4 4h16v3H4V4Zm0 6.5h16v3H4v-3ZM4 17h10v3H4v-3Z"/></svg>
+            </div>
+            <h3 class="text-lg font-semibold text-white">MCP server</h3>
+            <p class="mt-2 text-sm text-slate-400 leading-relaxed">
+              41 typed tools across 12 Clio domains, plus a generic
+              <code class="text-brand-300">clio_api_request</code> escape hatch. Same
+              binary, two transports — stdio for local, stateless HTTP for Azure.
+            </p>
+            <ul class="mt-5 space-y-2 text-sm text-slate-300">
+              <li class="flex gap-2"><span class="text-brand-400">›</span> OAuth 2.0 + AES-256-GCM token-at-rest</li>
+              <li class="flex gap-2"><span class="text-brand-400">›</span> Append-only JSONL audit log (ABA Op 512)</li>
+              <li class="flex gap-2"><span class="text-brand-400">›</span> US / CA / EU / AU regions</li>
+            </ul>
+          </div>
+
+          <!-- Plugin -->
+          <div class="rounded-2xl ring-1 ring-slate-800 bg-slate-900/40 p-7 hover:ring-brand-500/40 transition group">
+            <div class="w-11 h-11 rounded-xl bg-fuchsia-500/15 ring-1 ring-fuchsia-500/30 grid place-items-center text-fuchsia-300 mb-5">
+              <svg viewBox="0 0 24 24" class="w-6 h-6 fill-current"><path d="M12 2 4 6v6c0 5 3.5 9.5 8 10 4.5-.5 8-5 8-10V6l-8-4Z"/></svg>
+            </div>
+            <h3 class="text-lg font-semibold text-white">Claude Code plugin</h3>
+            <p class="mt-2 text-sm text-slate-400 leading-relaxed">
+              Skills, agents, and an <code class="text-brand-300">.mcp.json</code>
+              wiring that turns the MCP into ten domain workflows Claude can pick
+              from automatically.
+            </p>
+            <ul class="mt-5 space-y-2 text-sm text-slate-300">
+              <li class="flex gap-2"><span class="text-fuchsia-400">›</span> Intake, time, billing, trust, docs, calendar</li>
+              <li class="flex gap-2"><span class="text-fuchsia-400">›</span> Best-practice + setup walkthroughs</li>
+              <li class="flex gap-2"><span class="text-fuchsia-400">›</span> Two agents: intake + read-only analyst</li>
+            </ul>
+          </div>
+
+          <!-- Azure -->
+          <div class="rounded-2xl ring-1 ring-slate-800 bg-slate-900/40 p-7 hover:ring-brand-500/40 transition group">
+            <div class="w-11 h-11 rounded-xl bg-sky-500/15 ring-1 ring-sky-500/30 grid place-items-center text-sky-300 mb-5">
+              <svg viewBox="0 0 24 24" class="w-6 h-6 fill-current"><path d="M14 3 5 21h6l1.5-3.5L17 21h2l-5-18Zm-1 6 2.5 8h-5l2.5-8Z"/></svg>
+            </div>
+            <h3 class="text-lg font-semibold text-white">Azure deployment</h3>
+            <p class="mt-2 text-sm text-slate-400 leading-relaxed">
+              One <code class="text-brand-300">azd up</code> provisions Container Apps,
+              ACR, Key Vault, Azure Files, Log Analytics + App Insights. Secrets
+              flow via managed identity — never on disk.
+            </p>
+            <ul class="mt-5 space-y-2 text-sm text-slate-300">
+              <li class="flex gap-2"><span class="text-sky-400">›</span> Stateless HTTP transport, horizontal scale</li>
+              <li class="flex gap-2"><span class="text-sky-400">›</span> Timing-safe bearer auth, SHA-256 token digests</li>
+              <li class="flex gap-2"><span class="text-sky-400">›</span> ~$25–30/month for one warm replica</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- tools -->
+    <section id="tools" class="border-t border-slate-800/50 bg-slate-950/50">
+      <div class="max-w-7xl mx-auto px-6 py-20">
+        <h2 class="text-3xl sm:text-4xl font-bold tracking-tight text-white">Tool catalog</h2>
+        <p class="mt-3 text-slate-400 max-w-2xl">
+          41 tools, organized by domain. Every tool is Zod-validated, audit-logged,
+          and exposed through both transports.
+        </p>
+
+        <div class="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- Auth -->
+          <div class="rounded-xl ring-1 ring-slate-800 bg-slate-900/40 p-5">
+            <h3 class="font-semibold text-white flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-emerald-400"></span> Auth
+            </h3>
+            <ul class="mt-3 text-xs text-slate-400 font-mono space-y-1">
+              <li>clio_authenticate</li>
+              <li>clio_auth_status</li>
+              <li>clio_who_am_i</li>
+              <li>clio_logout</li>
+            </ul>
+          </div>
+          <!-- Matters -->
+          <div class="rounded-xl ring-1 ring-slate-800 bg-slate-900/40 p-5">
+            <h3 class="font-semibold text-white flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-brand-400"></span> Matters
+            </h3>
+            <ul class="mt-3 text-xs text-slate-400 font-mono space-y-1">
+              <li>clio_list_matters</li>
+              <li>clio_get_matter</li>
+              <li>clio_create_matter</li>
+              <li>clio_update_matter</li>
+              <li>clio_delete_matter</li>
+              <li>clio_list_matter_contacts</li>
+            </ul>
+          </div>
+          <!-- Contacts -->
+          <div class="rounded-xl ring-1 ring-slate-800 bg-slate-900/40 p-5">
+            <h3 class="font-semibold text-white flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-fuchsia-400"></span> Contacts
+            </h3>
+            <ul class="mt-3 text-xs text-slate-400 font-mono space-y-1">
+              <li>clio_search_contacts</li>
+              <li>clio_get_contact</li>
+              <li>clio_create_person_contact</li>
+              <li>clio_create_company_contact</li>
+              <li>clio_update_contact</li>
+              <li>clio_delete_contact</li>
+            </ul>
+          </div>
+          <!-- Activities -->
+          <div class="rounded-xl ring-1 ring-slate-800 bg-slate-900/40 p-5">
+            <h3 class="font-semibold text-white flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-amber-400"></span> Activities
+            </h3>
+            <ul class="mt-3 text-xs text-slate-400 font-mono space-y-1">
+              <li>clio_list_activities</li>
+              <li>clio_get_activity</li>
+              <li>clio_create_time_entry</li>
+              <li>clio_create_expense_entry</li>
+            </ul>
+          </div>
+          <!-- Tasks -->
+          <div class="rounded-xl ring-1 ring-slate-800 bg-slate-900/40 p-5">
+            <h3 class="font-semibold text-white flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-rose-400"></span> Tasks
+            </h3>
+            <ul class="mt-3 text-xs text-slate-400 font-mono space-y-1">
+              <li>clio_list_tasks</li>
+              <li>clio_get_task</li>
+              <li>clio_create_task</li>
+              <li>clio_update_task</li>
+            </ul>
+          </div>
+          <!-- Notes -->
+          <div class="rounded-xl ring-1 ring-slate-800 bg-slate-900/40 p-5">
+            <h3 class="font-semibold text-white flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-violet-400"></span> Notes
+            </h3>
+            <ul class="mt-3 text-xs text-slate-400 font-mono space-y-1">
+              <li>clio_list_notes</li>
+              <li>clio_create_note</li>
+            </ul>
+          </div>
+          <!-- Calendar -->
+          <div class="rounded-xl ring-1 ring-slate-800 bg-slate-900/40 p-5">
+            <h3 class="font-semibold text-white flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-sky-400"></span> Calendar
+            </h3>
+            <ul class="mt-3 text-xs text-slate-400 font-mono space-y-1">
+              <li>clio_list_calendars</li>
+              <li>clio_list_calendar_entries</li>
+              <li>clio_create_calendar_entry</li>
+            </ul>
+          </div>
+          <!-- Documents -->
+          <div class="rounded-xl ring-1 ring-slate-800 bg-slate-900/40 p-5">
+            <h3 class="font-semibold text-white flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-teal-400"></span> Documents
+            </h3>
+            <ul class="mt-3 text-xs text-slate-400 font-mono space-y-1">
+              <li>clio_list_documents</li>
+              <li>clio_get_document</li>
+              <li>clio_get_document_download_url</li>
+              <li>clio_list_folders</li>
+            </ul>
+          </div>
+          <!-- Bills -->
+          <div class="rounded-xl ring-1 ring-slate-800 bg-slate-900/40 p-5">
+            <h3 class="font-semibold text-white flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-lime-400"></span> Bills
+            </h3>
+            <ul class="mt-3 text-xs text-slate-400 font-mono space-y-1">
+              <li>clio_list_bills</li>
+              <li>clio_get_bill</li>
+              <li>clio_get_billing_summary</li>
+            </ul>
+          </div>
+          <!-- Users -->
+          <div class="rounded-xl ring-1 ring-slate-800 bg-slate-900/40 p-5">
+            <h3 class="font-semibold text-white flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-orange-400"></span> Users
+            </h3>
+            <ul class="mt-3 text-xs text-slate-400 font-mono space-y-1">
+              <li>clio_list_users</li>
+              <li>clio_get_user</li>
+            </ul>
+          </div>
+          <!-- Practice Areas -->
+          <div class="rounded-xl ring-1 ring-slate-800 bg-slate-900/40 p-5">
+            <h3 class="font-semibold text-white flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-indigo-400"></span> Practice areas
+            </h3>
+            <ul class="mt-3 text-xs text-slate-400 font-mono space-y-1">
+              <li>clio_list_practice_areas</li>
+            </ul>
+          </div>
+          <!-- Workflows -->
+          <div class="rounded-xl ring-1 ring-brand-500/40 bg-brand-500/5 p-5">
+            <h3 class="font-semibold text-white flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-pink-400"></span> Composite + escape
+            </h3>
+            <ul class="mt-3 text-xs text-slate-300 font-mono space-y-1">
+              <li>clio_open_new_matter</li>
+              <li>clio_api_request</li>
+            </ul>
+            <p class="mt-3 text-xs text-slate-400">
+              One workflow tool (intake) + one generic API escape hatch for endpoints
+              we haven't typed yet.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- install -->
+    <section id="install" class="border-t border-slate-800/50">
+      <div class="max-w-7xl mx-auto px-6 py-20">
+        <h2 class="text-3xl sm:text-4xl font-bold tracking-tight text-white">Install</h2>
+        <p class="mt-3 text-slate-400 max-w-2xl">
+          The local stdio path takes about five minutes. Azure takes one
+          <code class="text-brand-300">azd up</code>.
+        </p>
+
+        <div class="mt-10 grid lg:grid-cols-3 gap-6">
+          <!-- Step 1 -->
+          <div class="rounded-2xl ring-1 ring-slate-800 bg-slate-900/40 p-6">
+            <div class="flex items-center gap-3 mb-4">
+              <span class="grid place-items-center w-7 h-7 rounded-full bg-brand-500/20 text-brand-300 font-bold text-sm ring-1 ring-brand-500/30">1</span>
+              <h3 class="font-semibold text-white">Clone &amp; build</h3>
+            </div>
+            <pre class="rounded-lg bg-slate-950 ring-1 ring-slate-800 p-4 text-xs overflow-x-auto"><code class="text-slate-300">git clone https://github.com/<wbr>patrickking67/clio-manage-mcp
+cd clio-manage-mcp
+npm install
+npm run build</code></pre>
+          </div>
+          <!-- Step 2 -->
+          <div class="rounded-2xl ring-1 ring-slate-800 bg-slate-900/40 p-6">
+            <div class="flex items-center gap-3 mb-4">
+              <span class="grid place-items-center w-7 h-7 rounded-full bg-brand-500/20 text-brand-300 font-bold text-sm ring-1 ring-brand-500/30">2</span>
+              <h3 class="font-semibold text-white">Configure OAuth</h3>
+            </div>
+            <pre class="rounded-lg bg-slate-950 ring-1 ring-slate-800 p-4 text-xs overflow-x-auto"><code class="text-slate-300">cp .env.example .env
+# Create app at developers.clio.com
+# Redirect URI:
+#   http://localhost:53682/oauth/callback
+# Paste CLIO_CLIENT_ID + CLIO_CLIENT_SECRET</code></pre>
+            <a
+              href="oauth-setup.md"
+              class="mt-3 inline-flex items-center gap-1 text-xs text-brand-300 hover:text-brand-200"
+              >Full OAuth walkthrough →</a
+            >
+          </div>
+          <!-- Step 3 -->
+          <div class="rounded-2xl ring-1 ring-slate-800 bg-slate-900/40 p-6">
+            <div class="flex items-center gap-3 mb-4">
+              <span class="grid place-items-center w-7 h-7 rounded-full bg-brand-500/20 text-brand-300 font-bold text-sm ring-1 ring-brand-500/30">3</span>
+              <h3 class="font-semibold text-white">Run &amp; smoke test</h3>
+            </div>
+            <pre class="rounded-lg bg-slate-950 ring-1 ring-slate-800 p-4 text-xs overflow-x-auto"><code class="text-slate-300">npm run start:stdio
+# In another shell:
+npm run smoke:stdio
+# → OK 41 tools</code></pre>
+          </div>
+        </div>
+
+        <!-- claude code config -->
+        <div class="mt-10 rounded-2xl ring-1 ring-slate-800 bg-slate-900/40 p-6">
+          <h3 class="font-semibold text-white">Wire into Claude Code</h3>
+          <p class="text-sm text-slate-400 mt-2">
+            Add to <code class="text-brand-300">~/.claude/mcp_servers.json</code> (or
+            project-scoped <code class="text-brand-300">.mcp.json</code>):
+          </p>
+          <pre class="mt-4 rounded-lg bg-slate-950 ring-1 ring-slate-800 p-4 text-xs overflow-x-auto"><code class="text-slate-300">{
+  "mcpServers": {
+    "clio-manage": {
+      "command": "node",
+      "args": ["/absolute/path/to/clio-manage-mcp/build/index.js", "--stdio"],
+      "env": { "CLIO_REGION": "us" }
+    }
+  }
+}</code></pre>
+          <p class="text-sm text-slate-400 mt-4">
+            Then <code class="text-brand-300">claude /mcp</code> should list
+            <span class="text-emerald-400">clio-manage</span> ✓ with 41 tools.
+          </p>
+        </div>
+
+        <!-- azure callout -->
+        <div class="mt-6 rounded-2xl ring-1 ring-sky-500/30 bg-sky-500/5 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h3 class="font-semibold text-white">Firm-wide on Azure?</h3>
+            <p class="text-sm text-slate-300 mt-1">
+              One <code class="text-brand-300">azd up</code> deploys Container Apps + ACR + Key Vault + Azure
+              Files + App Insights. HTTP transport, bearer auth, managed identity for
+              secrets.
+            </p>
+          </div>
+          <a
+            href="deployment-azure.md"
+            class="inline-flex items-center gap-2 rounded-lg bg-sky-500 hover:bg-sky-400 px-4 py-2 text-sm font-semibold text-white whitespace-nowrap transition"
+            >Azure guide →</a
+          >
+        </div>
+      </div>
+    </section>
+
+    <!-- plugin -->
+    <section id="plugin" class="border-t border-slate-800/50 bg-slate-950/50">
+      <div class="max-w-7xl mx-auto px-6 py-20">
+        <h2 class="text-3xl sm:text-4xl font-bold tracking-tight text-white">
+          The Clio Manage plugin
+        </h2>
+        <p class="mt-3 text-slate-400 max-w-2xl">
+          The MCP gives Claude capability. The plugin gives Claude judgment — when
+          to call which tool, how to chain them, what guardrails to enforce.
+        </p>
+
+        <div class="mt-10 grid lg:grid-cols-2 gap-8">
+          <div class="rounded-2xl ring-1 ring-slate-800 bg-slate-900/40 p-6">
+            <h3 class="font-semibold text-white">Skills</h3>
+            <ul class="mt-4 divide-y divide-slate-800/70 text-sm">
+              <li class="py-3 flex justify-between gap-4"><span class="font-mono text-brand-300">clio-setup</span><span class="text-slate-400">OAuth + env walkthrough</span></li>
+              <li class="py-3 flex justify-between gap-4"><span class="font-mono text-brand-300">clio-search</span><span class="text-slate-400">Pick the right list tool + filters</span></li>
+              <li class="py-3 flex justify-between gap-4"><span class="font-mono text-brand-300">clio-best-practices</span><span class="text-slate-400">ABA Op 512 + Clio API hygiene</span></li>
+              <li class="py-3 flex justify-between gap-4"><span class="font-mono text-brand-300">clio-matter-intake</span><span class="text-slate-400">Composite new-matter flow</span></li>
+              <li class="py-3 flex justify-between gap-4"><span class="font-mono text-brand-300">clio-time-entry</span><span class="text-slate-400">Billable, flat-fee, UTBMS</span></li>
+              <li class="py-3 flex justify-between gap-4"><span class="font-mono text-brand-300">clio-billing</span><span class="text-slate-400">Bills, AR, payments</span></li>
+              <li class="py-3 flex justify-between gap-4"><span class="font-mono text-brand-300">clio-document-automation</span><span class="text-slate-400">Templates, automations, downloads</span></li>
+              <li class="py-3 flex justify-between gap-4"><span class="font-mono text-brand-300">clio-calendar</span><span class="text-slate-400">Events, court rules, conflicts</span></li>
+              <li class="py-3 flex justify-between gap-4"><span class="font-mono text-brand-300">clio-contacts</span><span class="text-slate-400">Dedupe, link, manage</span></li>
+              <li class="py-3 flex justify-between gap-4"><span class="font-mono text-brand-300">clio-trust-accounting</span><span class="text-slate-400">IOLTA + three-way recon prep</span></li>
+            </ul>
+          </div>
+
+          <div class="space-y-6">
+            <div class="rounded-2xl ring-1 ring-slate-800 bg-slate-900/40 p-6">
+              <h3 class="font-semibold text-white">Agents</h3>
+              <ul class="mt-4 divide-y divide-slate-800/70 text-sm">
+                <li class="py-3">
+                  <p class="font-mono text-brand-300">clio-intake-agent</p>
+                  <p class="text-slate-400 mt-1">Autonomous intake from a single prompt. Duplicate detection, practice-area lookup, confirmation gate, partial-success handling.</p>
+                </li>
+                <li class="py-3">
+                  <p class="font-mono text-brand-300">clio-data-analyst</p>
+                  <p class="text-slate-400 mt-1">Read-only analyses for partner reports — AR aging, stale matters, hours-by-attorney, billing rollups. Refuses any write.</p>
+                </li>
+              </ul>
+            </div>
+
+            <div class="rounded-2xl ring-1 ring-slate-800 bg-slate-900/40 p-6">
+              <h3 class="font-semibold text-white">Install the plugin</h3>
+              <pre class="mt-3 rounded-lg bg-slate-950 ring-1 ring-slate-800 p-4 text-xs overflow-x-auto"><code class="text-slate-300">claude /plugin marketplace add patrickking67/clio-manage-mcp
+claude /plugin install clio-manage@clio-manage</code></pre>
+              <p class="text-xs text-slate-400 mt-3">
+                Or from the local repo:
+                <code class="text-brand-300">claude /plugin marketplace add ./plugin</code>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- connectors -->
+    <section id="connectors" class="border-t border-slate-800/50">
+      <div class="max-w-7xl mx-auto px-6 py-20">
+        <h2 class="text-3xl sm:text-4xl font-bold tracking-tight text-white">
+          Optional connectors
+        </h2>
+        <p class="mt-3 text-slate-400 max-w-2xl">
+          Clio is required. Everything else is opt-in. Skills surface what they need
+          and degrade gracefully when a connector isn't installed.
+        </p>
+
+        <div class="mt-10 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="rounded-xl ring-1 ring-brand-500/40 bg-brand-500/5 p-5">
+            <div class="text-xs font-medium text-brand-300 uppercase tracking-wider">Required</div>
+            <h3 class="mt-2 font-semibold text-white">Clio Manage</h3>
+            <p class="mt-1 text-sm text-slate-400">This MCP server. Matters, contacts, time, billing, calendar, documents.</p>
+          </div>
+          <div class="rounded-xl ring-1 ring-slate-800 bg-slate-900/40 p-5">
+            <div class="text-xs font-medium text-emerald-300 uppercase tracking-wider">Recommended</div>
+            <h3 class="mt-2 font-semibold text-white">Microsoft 365</h3>
+            <p class="mt-1 text-sm text-slate-400">Outlook, Calendar, SharePoint, Word, Teams.</p>
+          </div>
+          <div class="rounded-xl ring-1 ring-slate-800 bg-slate-900/40 p-5">
+            <div class="text-xs font-medium text-emerald-300 uppercase tracking-wider">Recommended</div>
+            <h3 class="mt-2 font-semibold text-white">Google Workspace</h3>
+            <p class="mt-1 text-sm text-slate-400">Gmail, Calendar, Drive, Docs.</p>
+          </div>
+          <div class="rounded-xl ring-1 ring-slate-800 bg-slate-900/40 p-5">
+            <div class="text-xs font-medium text-amber-300 uppercase tracking-wider">Useful</div>
+            <h3 class="mt-2 font-semibold text-white">DocuSign</h3>
+            <p class="mt-1 text-sm text-slate-400">eSignature for engagement letters.</p>
+          </div>
+          <div class="rounded-xl ring-1 ring-slate-800 bg-slate-900/40 p-5">
+            <div class="text-xs font-medium text-amber-300 uppercase tracking-wider">Useful</div>
+            <h3 class="mt-2 font-semibold text-white">Stripe</h3>
+            <p class="mt-1 text-sm text-slate-400">Payments + Clio Payments reconciliation.</p>
+          </div>
+          <div class="rounded-xl ring-1 ring-slate-800 bg-slate-900/40 p-5">
+            <div class="text-xs font-medium text-amber-300 uppercase tracking-wider">Useful</div>
+            <h3 class="mt-2 font-semibold text-white">Slack / Teams</h3>
+            <p class="mt-1 text-sm text-slate-400">Internal firm communications.</p>
+          </div>
+          <div class="rounded-xl ring-1 ring-slate-800 bg-slate-900/40 p-5">
+            <div class="text-xs font-medium text-sky-300 uppercase tracking-wider">Ops</div>
+            <h3 class="mt-2 font-semibold text-white">Sentry / App Insights</h3>
+            <p class="mt-1 text-sm text-slate-400">Monitor the MCP server in production.</p>
+          </div>
+          <div class="rounded-xl ring-1 ring-slate-800 bg-slate-900/40 p-5">
+            <div class="text-xs font-medium text-fuchsia-300 uppercase tracking-wider">Soon</div>
+            <h3 class="mt-2 font-semibold text-white">Court systems</h3>
+            <p class="mt-1 text-sm text-slate-400">Westlaw, PACER, state e-filing (roadmap).</p>
+          </div>
+        </div>
+
+        <p class="mt-8 text-sm text-slate-400">
+          Full setup steps live in
+          <a href="connectors.md" class="text-brand-300 hover:text-brand-200 underline">docs/connectors.md</a>.
+        </p>
+      </div>
+    </section>
+
+    <!-- security -->
+    <section id="security" class="border-t border-slate-800/50 bg-slate-950/50">
+      <div class="max-w-7xl mx-auto px-6 py-20 grid lg:grid-cols-2 gap-12 items-start">
+        <div>
+          <h2 class="text-3xl sm:text-4xl font-bold tracking-tight text-white">
+            Security &amp; compliance
+          </h2>
+          <p class="mt-3 text-slate-400 max-w-xl">
+            Designed for production at a law firm. Encryption at rest, OAuth tokens
+            that never touch chat, and an audit trail that holds up under ABA Formal
+            Opinion 512 scrutiny.
+          </p>
+          <a
+            href="security.md"
+            class="mt-6 inline-flex items-center gap-2 rounded-lg ring-1 ring-slate-700 hover:ring-slate-500 hover:bg-slate-800/50 px-4 py-2 text-sm font-semibold text-slate-200 transition"
+            >Read the security doc →</a
+          >
+        </div>
+        <div class="grid sm:grid-cols-2 gap-4">
+          <div class="rounded-xl ring-1 ring-slate-800 bg-slate-900/40 p-5">
+            <h3 class="font-semibold text-white text-sm">Token-at-rest</h3>
+            <p class="mt-2 text-xs text-slate-400">AES-256-GCM with 12-byte IV + 16-byte GCM auth tag. Encrypted in <code class="text-brand-300">$CLIO_STATE_DIR/tokens.json</code> at mode 0o600.</p>
+          </div>
+          <div class="rounded-xl ring-1 ring-slate-800 bg-slate-900/40 p-5">
+            <h3 class="font-semibold text-white text-sm">Audit log</h3>
+            <p class="mt-2 text-xs text-slate-400">Append-only JSONL. Three modes: <code class="text-brand-300">none</code>, <code class="text-brand-300">metadata</code>, <code class="text-brand-300">full</code>. Per-firm retention controllable.</p>
+          </div>
+          <div class="rounded-xl ring-1 ring-slate-800 bg-slate-900/40 p-5">
+            <h3 class="font-semibold text-white text-sm">HTTP transport</h3>
+            <p class="mt-2 text-xs text-slate-400">Bearer tokens compared with timing-safe equality on SHA-256 digests. CallerID = first 6 bytes of digest — auditable without storing the token.</p>
+          </div>
+          <div class="rounded-xl ring-1 ring-slate-800 bg-slate-900/40 p-5">
+            <h3 class="font-semibold text-white text-sm">Azure managed identity</h3>
+            <p class="mt-2 text-xs text-slate-400">Secrets flow from Key Vault to the Container App via system-assigned MI. RBAC, soft-delete, purge protection on by default.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- faq -->
+    <section id="faq" class="border-t border-slate-800/50">
+      <div class="max-w-4xl mx-auto px-6 py-20">
+        <h2 class="text-3xl sm:text-4xl font-bold tracking-tight text-white">FAQ</h2>
+        <div class="mt-10 divide-y divide-slate-800/70">
+          <details class="py-5 group">
+            <summary class="cursor-pointer flex items-center justify-between text-white font-medium">
+              <span>Is this an official Clio product?</span>
+              <span class="text-slate-500 group-open:rotate-45 transition">+</span>
+            </summary>
+            <p class="mt-3 text-sm text-slate-400">
+              No. It's an independent open-source integration that uses Clio's
+              public v4 API. Clio doesn't endorse or support it. Bring your own
+              developer app, your own OAuth credentials, and your own deployment.
+            </p>
+          </details>
+          <details class="py-5 group">
+            <summary class="cursor-pointer flex items-center justify-between text-white font-medium">
+              <span>Does my Clio data leave the firm?</span>
+              <span class="text-slate-500 group-open:rotate-45 transition">+</span>
+            </summary>
+            <p class="mt-3 text-sm text-slate-400">
+              The MCP is a passthrough — it doesn't store Clio data. Tool calls go
+              from Claude → MCP → Clio API → back. The audit log records what was
+              called (and optionally the args/results, depending on mode), and that
+              file stays on whatever host runs the MCP. If you deploy to Azure, the
+              audit log lives in Azure Files inside your tenant.
+            </p>
+          </details>
+          <details class="py-5 group">
+            <summary class="cursor-pointer flex items-center justify-between text-white font-medium">
+              <span>Can I use this with the Claude desktop app?</span>
+              <span class="text-slate-500 group-open:rotate-45 transition">+</span>
+            </summary>
+            <p class="mt-3 text-sm text-slate-400">
+              Yes, the stdio transport works with any MCP client. Example
+              <code class="text-brand-300">claude_desktop_config.json</code> is in the
+              <a href="https://github.com/patrickking67/clio-manage-mcp/blob/main/examples/claude-desktop.json" class="underline">examples folder</a>.
+              The Claude Code plugin layer is Claude Code-specific.
+            </p>
+          </details>
+          <details class="py-5 group">
+            <summary class="cursor-pointer flex items-center justify-between text-white font-medium">
+              <span>How much does it cost to run on Azure?</span>
+              <span class="text-slate-500 group-open:rotate-45 transition">+</span>
+            </summary>
+            <p class="mt-3 text-sm text-slate-400">
+              About $25–30/month for a single warm Container Apps replica + Log
+              Analytics + App Insights + Key Vault + ACR. Scale-to-zero is supported
+              if you want cold-start tradeoffs. ACR Basic is the dominant fixed
+              cost.
+            </p>
+          </details>
+          <details class="py-5 group">
+            <summary class="cursor-pointer flex items-center justify-between text-white font-medium">
+              <span>What about ABA Formal Opinion 512?</span>
+              <span class="text-slate-500 group-open:rotate-45 transition">+</span>
+            </summary>
+            <p class="mt-3 text-sm text-slate-400">
+              The MCP and plugin are designed around it. Per-call audit, explicit
+              write confirmations, redaction-aware reads, and the
+              <code class="text-brand-300">clio-best-practices</code> skill that
+              loads ABA Op 512 guidance into every relevant conversation. None of
+              that replaces a lawyer's judgment, but it removes the most common
+              ways AI accidentally violates the duties of competence and
+              confidentiality.
+            </p>
+          </details>
+          <details class="py-5 group">
+            <summary class="cursor-pointer flex items-center justify-between text-white font-medium">
+              <span>Which Clio region am I in?</span>
+              <span class="text-slate-500 group-open:rotate-45 transition">+</span>
+            </summary>
+            <p class="mt-3 text-sm text-slate-400">
+              Whichever subdomain you sign in at: <code>app.clio.com</code> (US),
+              <code>ca.app.clio.com</code> (CA), <code>eu.app.clio.com</code> (EU),
+              or <code>au.app.clio.com</code> (AU). Set
+              <code class="text-brand-300">CLIO_REGION</code> to one of
+              <code>us</code> / <code>ca</code> / <code>eu</code> / <code>au</code>.
+              You must create the developer app on the matching regional portal.
+            </p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <footer class="border-t border-slate-800/50">
+      <div class="max-w-7xl mx-auto px-6 py-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-sm text-slate-400">
+        <div class="flex items-center gap-2">
+          <span class="grid place-items-center w-7 h-7 rounded-lg bg-brand-600/20 ring-1 ring-brand-500/40 text-brand-300 font-bold text-xs">C</span>
+          <span>Clio Manage MCP · MIT licensed</span>
+        </div>
+        <div class="flex items-center gap-6">
+          <a href="https://github.com/patrickking67/clio-manage-mcp" class="hover:text-white transition">GitHub</a>
+          <a href="https://docs.developers.clio.com/" class="hover:text-white transition">Clio API docs</a>
+          <a href="https://modelcontextprotocol.io" class="hover:text-white transition">MCP spec</a>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
