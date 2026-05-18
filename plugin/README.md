@@ -1,8 +1,14 @@
 # Clio Manage plugin for Claude Code
 
+<p align="center">
+  <img src="./.claude-plugin/icon.svg" width="96" height="96" alt="Clio mark" />
+</p>
+
 A Claude Code plugin that bundles skills, agents, and an MCP wiring for
 [Clio Manage](https://www.clio.com/) — the legal practice management
-system used by tens of thousands of law firms.
+system used by tens of thousands of law firms. After installation the
+connector appears in `claude /mcp` as **Clio Manage** with the proper
+Clio mark.
 
 The plugin sits on top of the [Clio Manage MCP server](https://github.com/patrickking67/clio-manage-mcp)
 in this same repo. The MCP gives Claude *capability* (41 tools across 12
