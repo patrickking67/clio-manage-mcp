@@ -328,6 +328,198 @@
       /* Reveal */
       .reveal { opacity: 0; transform: translateY(12px); transition: opacity 700ms ease, transform 700ms ease; }
       .reveal.in { opacity: 1; transform: translateY(0); }
+
+      /* === Cursor spotlight in hero === */
+      .spotlight {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 400ms ease;
+        background: radial-gradient(
+          400px circle at var(--mx, 50%) var(--my, 50%),
+          rgb(25 118 210 / 0.10),
+          transparent 50%
+        );
+      }
+      .dark .spotlight {
+        background: radial-gradient(
+          400px circle at var(--mx, 50%) var(--my, 50%),
+          rgb(96 165 250 / 0.14),
+          transparent 50%
+        );
+      }
+      .spotlight.lit { opacity: 1; }
+
+      /* === Cycling terminal === */
+      .term-bar {
+        display: flex; align-items: center; gap: 0.375rem;
+        padding: 0.65rem 1rem;
+        border-bottom: 1px solid rgb(var(--border));
+      }
+      .term-dot { width: 0.625rem; height: 0.625rem; border-radius: 9999px; }
+      .term-tabs {
+        margin-left: 0.75rem;
+        display: flex; gap: 0.375rem;
+      }
+      .term-tab {
+        height: 0.35rem;
+        width: 1.1rem;
+        border-radius: 9999px;
+        background: rgb(var(--border));
+        transition: background 250ms ease, width 250ms ease;
+      }
+      .term-tab.is-active { background: rgb(var(--accent)); width: 1.6rem; }
+
+      .term-prompt {
+        font-family: 'Geist Mono', monospace;
+        font-size: 0.92rem;
+        line-height: 1.65;
+        color: rgb(var(--fg));
+        min-height: 9rem;
+        white-space: pre-wrap;
+      }
+      .term-prompt .marker { color: rgb(var(--accent)); margin-right: 0.4rem; }
+      .term-prompt .accent { color: rgb(var(--accent)); font-weight: 500; }
+      .term-prompt .caret {
+        display: inline-block;
+        width: 0.55rem;
+        height: 1.05em;
+        margin-left: 1px;
+        vertical-align: text-bottom;
+        background: rgb(var(--accent));
+        animation: blink 1s steps(2,end) infinite;
+      }
+      @keyframes blink { 50% { opacity: 0; } }
+
+      .term-out {
+        font-family: 'Geist Mono', monospace;
+        font-size: 0.82rem;
+        line-height: 1.95;
+        color: rgb(var(--fg-muted));
+        min-height: 9rem;
+      }
+      .term-row {
+        display: flex; gap: 0.5rem; align-items: baseline;
+        opacity: 0;
+        transform: translateY(4px);
+        transition: opacity 300ms ease, transform 300ms ease;
+      }
+      .term-row.in { opacity: 1; transform: translateY(0); }
+      .term-row .check {
+        color: rgb(var(--success));
+        font-weight: 600;
+      }
+      .term-row .meta { color: rgb(var(--fg-faint)); }
+      .term-result {
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid rgb(var(--border));
+        color: rgb(var(--accent));
+        opacity: 0;
+        transition: opacity 400ms ease;
+      }
+      .term-result.in { opacity: 1; }
+
+      /* === Animated counter === */
+      .counter[data-running="true"]::after {
+        content: '';
+        display: inline-block;
+        width: 0.32em;
+        height: 1.02em;
+        margin-left: 0.1em;
+        vertical-align: text-bottom;
+        background: rgb(var(--fg-faint));
+        opacity: 0.4;
+        animation: blink 1s steps(2,end) infinite;
+      }
+
+      /* === Tool search === */
+      .tool-search {
+        position: relative;
+      }
+      .tool-search input {
+        width: 100%;
+        padding: 0.65rem 0.95rem 0.65rem 2.5rem;
+        font-size: 0.9rem;
+        font-family: inherit;
+        color: rgb(var(--fg));
+        background: rgb(var(--bg-elev));
+        border: 1px solid rgb(var(--border));
+        border-radius: 0.625rem;
+        transition: border-color 200ms ease, box-shadow 200ms ease, background 200ms ease;
+      }
+      .tool-search input:focus {
+        outline: none;
+        border-color: rgb(var(--accent) / 0.6);
+        box-shadow: 0 0 0 3px rgb(var(--accent) / 0.15);
+      }
+      .tool-search input::placeholder { color: rgb(var(--fg-faint)); }
+      .tool-search svg {
+        position: absolute;
+        left: 0.85rem; top: 50%; transform: translateY(-50%);
+        color: rgb(var(--fg-faint));
+        pointer-events: none;
+      }
+      .tool-search .clear {
+        position: absolute;
+        right: 0.5rem; top: 50%; transform: translateY(-50%);
+        padding: 0.25rem 0.5rem;
+        font-size: 0.7rem;
+        color: rgb(var(--fg-faint));
+        background: transparent;
+        border: 0;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 200ms ease, color 200ms;
+      }
+      .tool-search.has-value .clear { opacity: 1; }
+      .tool-search .clear:hover { color: rgb(var(--fg)); }
+      [data-tool] mark {
+        background: rgb(var(--accent) / 0.18);
+        color: inherit;
+        border-radius: 2px;
+        padding: 0 1px;
+      }
+      [data-tool].hide { display: none; }
+      .tool-empty {
+        display: none;
+        padding: 3rem 0;
+        text-align: center;
+        color: rgb(var(--fg-muted));
+        font-size: 0.9rem;
+      }
+      .tool-empty.show { display: block; }
+
+      /* === Magnetic/tilt cards === */
+      .tilt {
+        will-change: transform;
+        transition: transform 300ms cubic-bezier(0.2, 0.7, 0.3, 1);
+        transform-style: preserve-3d;
+      }
+      .tilt:hover {
+        transition: transform 80ms ease-out;
+      }
+
+      /* === View Transitions theme toggle === */
+      @supports (view-transition-name: root) {
+        ::view-transition-old(root),
+        ::view-transition-new(root) {
+          animation: none;
+          mix-blend-mode: normal;
+        }
+        ::view-transition-old(root) {
+          z-index: 1;
+        }
+        ::view-transition-new(root) {
+          z-index: 2;
+          animation: theme-reveal 500ms cubic-bezier(0.2, 0.7, 0.2, 1);
+        }
+        @keyframes theme-reveal {
+          from { clip-path: circle(0% at var(--tx, 100%) var(--ty, 0%)); }
+          to   { clip-path: circle(150% at var(--tx, 100%) var(--ty, 0%)); }
+        }
+      }
     </style>
   </head>
 
@@ -388,10 +580,11 @@
 
     <main id="main">
       <!-- =============== Hero =============== -->
-      <section class="relative overflow-hidden">
+      <section class="relative overflow-hidden" id="hero">
         <div aria-hidden="true" class="absolute inset-0 grid-fade pointer-events-none"></div>
         <div aria-hidden="true" class="absolute -top-32 left-1/2 -translate-x-1/2 w-[60rem] h-[40rem] blob-1 pointer-events-none"></div>
         <div aria-hidden="true" class="absolute top-32 right-0 w-[30rem] h-[30rem] blob-2 pointer-events-none"></div>
+        <div aria-hidden="true" class="spotlight" id="spotlight"></div>
 
         <div class="relative max-w-6xl mx-auto px-5 sm:px-8 pt-16 sm:pt-24 pb-20 sm:pb-28">
           <div class="max-w-3xl">
@@ -439,48 +632,46 @@
 
             <div class="mt-12 grid grid-cols-2 sm:grid-cols-4 gap-y-6 gap-x-8 max-w-2xl animate-fade-up [animation-delay:480ms]">
               <div>
-                <div class="text-3xl font-semibold tabular-nums">41</div>
+                <div class="text-3xl font-semibold tabular-nums counter" data-count="41">0</div>
                 <div class="text-xs mt-1 font-mono uppercase tracking-wider" style="color: rgb(var(--fg-faint));">Tools</div>
               </div>
               <div>
-                <div class="text-3xl font-semibold tabular-nums">10</div>
+                <div class="text-3xl font-semibold tabular-nums counter" data-count="10">0</div>
                 <div class="text-xs mt-1 font-mono uppercase tracking-wider" style="color: rgb(var(--fg-faint));">Skills</div>
               </div>
               <div>
-                <div class="text-3xl font-semibold tabular-nums">2</div>
+                <div class="text-3xl font-semibold tabular-nums counter" data-count="2">0</div>
                 <div class="text-xs mt-1 font-mono uppercase tracking-wider" style="color: rgb(var(--fg-faint));">Agents</div>
               </div>
               <div>
-                <div class="text-3xl font-semibold">4</div>
+                <div class="text-3xl font-semibold tabular-nums counter" data-count="4">0</div>
                 <div class="text-xs mt-1 font-mono uppercase tracking-wider" style="color: rgb(var(--fg-faint));">US · CA · EU · AU</div>
               </div>
             </div>
           </div>
 
-          <!-- terminal demo -->
+          <!-- live terminal demo (cycles through example prompts) -->
           <div class="mt-14 sm:mt-20 animate-fade-up [animation-delay:600ms]">
-            <div class="card overflow-hidden shadow-lifted max-w-4xl">
-              <div class="flex items-center gap-1.5 px-4 py-3" style="border-bottom: 1px solid rgb(var(--border));">
-                <span class="w-2.5 h-2.5 rounded-full" style="background: #ef4444;"></span>
-                <span class="w-2.5 h-2.5 rounded-full" style="background: #f59e0b;"></span>
-                <span class="w-2.5 h-2.5 rounded-full" style="background: #22c55e;"></span>
-                <span class="ml-3 text-xs font-mono" style="color: rgb(var(--fg-faint));">claude — clio-manage</span>
+            <div class="card overflow-hidden shadow-lifted max-w-4xl" id="terminal">
+              <div class="term-bar">
+                <span class="term-dot" style="background: #ef4444;"></span>
+                <span class="term-dot" style="background: #f59e0b;"></span>
+                <span class="term-dot" style="background: #22c55e;"></span>
+                <span class="ml-3 text-xs font-mono" style="color: rgb(var(--fg-faint));">claude — clio-manage · live demo</span>
+                <span class="term-tabs ml-auto" aria-hidden="true">
+                  <span class="term-tab" data-tab="0"></span>
+                  <span class="term-tab" data-tab="1"></span>
+                  <span class="term-tab" data-tab="2"></span>
+                  <span class="term-tab" data-tab="3"></span>
+                </span>
               </div>
-              <div class="grid sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x" style="--tw-divide-opacity:1; border-color: rgb(var(--border));">
-                <div class="p-5 sm:p-6 font-mono text-sm leading-relaxed" style="border-color: rgb(var(--border));">
-                  <div style="color: rgb(var(--fg-faint));"><span style="color: rgb(var(--accent));">›</span> Open a new matter for</div>
-                  <div>  Jane Smith — landlord/tenant,</div>
-                  <div>  flat fee <span class="font-medium" style="color: rgb(var(--accent));">$2,500</span>.</div>
-                  <div>  Add an opening note and an</div>
-                  <div>  intake task due Friday.</div>
+              <div class="grid sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x" style="border-color: rgb(var(--border));">
+                <div class="p-5 sm:p-6" style="border-color: rgb(var(--border));">
+                  <div class="term-prompt" id="termPrompt" aria-live="polite"></div>
                 </div>
-                <div class="p-5 sm:p-6 font-mono text-xs leading-loose" style="color: rgb(var(--fg-muted));">
-                  <div><span style="color: rgb(var(--success));">✓</span> clio_search_contacts <span style="color: rgb(var(--fg-faint));">no duplicate</span></div>
-                  <div><span style="color: rgb(var(--success));">✓</span> clio_create_person_contact <span style="color: rgb(var(--fg-faint));">#10421</span></div>
-                  <div><span style="color: rgb(var(--success));">✓</span> clio_create_matter <span style="color: rgb(var(--fg-faint));">flat-rate patched</span></div>
-                  <div><span style="color: rgb(var(--success));">✓</span> clio_create_note</div>
-                  <div><span style="color: rgb(var(--success));">✓</span> clio_create_task <span style="color: rgb(var(--fg-faint));">due 2026-05-22</span></div>
-                  <div class="mt-3 pt-3" style="border-top: 1px solid rgb(var(--border)); color: rgb(var(--accent));">→ matter #4892 opened</div>
+                <div class="p-5 sm:p-6">
+                  <div class="term-out" id="termOut"></div>
+                  <div class="term-result" id="termResult"></div>
                 </div>
               </div>
             </div>
@@ -503,7 +694,7 @@
           </div>
 
           <div class="mt-12 grid md:grid-cols-3 gap-5 reveal">
-            <article class="card card-hover p-6">
+            <article class="card card-hover tilt p-6">
               <div class="w-10 h-10 rounded-lg grid place-items-center" style="background: rgb(25 118 210 / 0.1); color: rgb(var(--accent));">
                 <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
               </div>
@@ -519,7 +710,7 @@
               </ul>
             </article>
 
-            <article class="card card-hover p-6">
+            <article class="card card-hover tilt p-6">
               <div class="w-10 h-10 rounded-lg grid place-items-center" style="background: rgb(168 85 247 / 0.1); color: rgb(168 85 247);">
                 <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 6v6c0 5 3.5 9.5 8 10 4.5-.5 8-5 8-10V6l-8-4z"/></svg>
               </div>
@@ -535,7 +726,7 @@
               </ul>
             </article>
 
-            <article class="card card-hover p-6">
+            <article class="card card-hover tilt p-6">
               <div class="w-10 h-10 rounded-lg grid place-items-center" style="background: rgb(20 184 166 / 0.1); color: rgb(20 184 166);">
                 <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3 5 21h6l1.5-3.5L17 21h2l-5-18Zm-1 6 2.5 8h-5l2.5-8Z"/></svg>
               </div>
@@ -839,8 +1030,14 @@ npm run smoke:stdio
             </p>
           </div>
 
-          <div class="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4 reveal">
-            <div class="card card-hover p-5">
+          <div class="mt-8 max-w-md tool-search reveal" id="toolSearch">
+            <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3-3"/></svg>
+            <input type="search" placeholder="Filter 41 tools by name or domain — try 'matter' or 'auth'" aria-label="Filter tools" id="toolFilter" />
+            <button type="button" class="clear" id="toolClear" aria-label="Clear search">clear</button>
+          </div>
+
+          <div class="mt-6 grid sm:grid-cols-2 lg:grid-cols-3 gap-4 reveal" id="toolGrid">
+            <div class="card card-hover p-5" data-tool data-domain="auth" data-tools="clio_authenticate clio_auth_status clio_who_am_i clio_logout">
               <div class="flex items-baseline justify-between">
                 <h3 class="font-semibold">Auth</h3>
                 <span class="text-xs font-mono" style="color: rgb(var(--fg-faint));">4</span>
@@ -852,7 +1049,7 @@ npm run smoke:stdio
                 <li>clio_logout</li>
               </ul>
             </div>
-            <div class="card card-hover p-5">
+            <div class="card card-hover p-5" data-tool data-domain="matters" data-tools="clio_list_matters clio_get_matter clio_create_matter clio_update_matter clio_delete_matter clio_list_matter_contacts">
               <div class="flex items-baseline justify-between">
                 <h3 class="font-semibold">Matters</h3>
                 <span class="text-xs font-mono" style="color: rgb(var(--fg-faint));">6</span>
@@ -866,7 +1063,7 @@ npm run smoke:stdio
                 <li>clio_list_matter_contacts</li>
               </ul>
             </div>
-            <div class="card card-hover p-5">
+            <div class="card card-hover p-5" data-tool data-domain="contacts" data-tools="clio_search_contacts clio_get_contact clio_create_person_contact clio_create_company_contact clio_update_contact clio_delete_contact">
               <div class="flex items-baseline justify-between">
                 <h3 class="font-semibold">Contacts</h3>
                 <span class="text-xs font-mono" style="color: rgb(var(--fg-faint));">6</span>
@@ -880,7 +1077,7 @@ npm run smoke:stdio
                 <li>clio_delete_contact</li>
               </ul>
             </div>
-            <div class="card card-hover p-5">
+            <div class="card card-hover p-5" data-tool data-domain="activities time" data-tools="clio_list_activities clio_get_activity clio_create_time_entry clio_create_expense_entry">
               <div class="flex items-baseline justify-between">
                 <h3 class="font-semibold">Activities</h3>
                 <span class="text-xs font-mono" style="color: rgb(var(--fg-faint));">4</span>
@@ -892,7 +1089,7 @@ npm run smoke:stdio
                 <li>clio_create_expense_entry</li>
               </ul>
             </div>
-            <div class="card card-hover p-5">
+            <div class="card card-hover p-5" data-tool data-domain="tasks" data-tools="clio_list_tasks clio_get_task clio_create_task clio_update_task">
               <div class="flex items-baseline justify-between">
                 <h3 class="font-semibold">Tasks</h3>
                 <span class="text-xs font-mono" style="color: rgb(var(--fg-faint));">4</span>
@@ -904,7 +1101,7 @@ npm run smoke:stdio
                 <li>clio_update_task</li>
               </ul>
             </div>
-            <div class="card card-hover p-5">
+            <div class="card card-hover p-5" data-tool data-domain="notes" data-tools="clio_list_notes clio_create_note">
               <div class="flex items-baseline justify-between">
                 <h3 class="font-semibold">Notes</h3>
                 <span class="text-xs font-mono" style="color: rgb(var(--fg-faint));">2</span>
@@ -914,7 +1111,7 @@ npm run smoke:stdio
                 <li>clio_create_note</li>
               </ul>
             </div>
-            <div class="card card-hover p-5">
+            <div class="card card-hover p-5" data-tool data-domain="calendar" data-tools="clio_list_calendars clio_list_calendar_entries clio_create_calendar_entry">
               <div class="flex items-baseline justify-between">
                 <h3 class="font-semibold">Calendar</h3>
                 <span class="text-xs font-mono" style="color: rgb(var(--fg-faint));">3</span>
@@ -925,7 +1122,7 @@ npm run smoke:stdio
                 <li>clio_create_calendar_entry</li>
               </ul>
             </div>
-            <div class="card card-hover p-5">
+            <div class="card card-hover p-5" data-tool data-domain="documents docs" data-tools="clio_list_documents clio_get_document clio_get_document_download_url clio_list_folders">
               <div class="flex items-baseline justify-between">
                 <h3 class="font-semibold">Documents</h3>
                 <span class="text-xs font-mono" style="color: rgb(var(--fg-faint));">4</span>
@@ -937,7 +1134,7 @@ npm run smoke:stdio
                 <li>clio_list_folders</li>
               </ul>
             </div>
-            <div class="card card-hover p-5">
+            <div class="card card-hover p-5" data-tool data-domain="bills billing" data-tools="clio_list_bills clio_get_bill clio_get_billing_summary">
               <div class="flex items-baseline justify-between">
                 <h3 class="font-semibold">Bills</h3>
                 <span class="text-xs font-mono" style="color: rgb(var(--fg-faint));">3</span>
@@ -948,7 +1145,7 @@ npm run smoke:stdio
                 <li>clio_get_billing_summary</li>
               </ul>
             </div>
-            <div class="card card-hover p-5">
+            <div class="card card-hover p-5" data-tool data-domain="users" data-tools="clio_list_users clio_get_user">
               <div class="flex items-baseline justify-between">
                 <h3 class="font-semibold">Users</h3>
                 <span class="text-xs font-mono" style="color: rgb(var(--fg-faint));">2</span>
@@ -958,7 +1155,7 @@ npm run smoke:stdio
                 <li>clio_get_user</li>
               </ul>
             </div>
-            <div class="card card-hover p-5">
+            <div class="card card-hover p-5" data-tool data-domain="practice-areas" data-tools="clio_list_practice_areas">
               <div class="flex items-baseline justify-between">
                 <h3 class="font-semibold">Practice areas</h3>
                 <span class="text-xs font-mono" style="color: rgb(var(--fg-faint));">1</span>
@@ -967,7 +1164,7 @@ npm run smoke:stdio
                 <li>clio_list_practice_areas</li>
               </ul>
             </div>
-            <div class="card card-hover p-5" style="background: rgb(var(--accent) / 0.04); border-color: rgb(var(--accent) / 0.3);">
+            <div class="card card-hover p-5" data-tool data-domain="composite workflow intake" data-tools="clio_open_new_matter clio_api_request" style="background: rgb(var(--accent) / 0.04); border-color: rgb(var(--accent) / 0.3);">
               <div class="flex items-baseline justify-between">
                 <h3 class="font-semibold">Composite</h3>
                 <span class="text-xs font-mono" style="color: rgb(var(--accent));">2</span>
@@ -981,6 +1178,9 @@ npm run smoke:stdio
                 One generic escape hatch.
               </p>
             </div>
+          </div>
+          <div class="tool-empty reveal" id="toolEmpty">
+            No tools match. Try <button type="button" class="link-u" style="color: rgb(var(--accent));" id="toolEmptyClear">clearing the filter</button>.
           </div>
         </div>
       </section>
@@ -1264,10 +1464,19 @@ npm run smoke:stdio
     </footer>
 
     <script>
-      // ====== Theme toggle ======
+      // All DOM construction below uses createElement + textContent only.
+      const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+      const makeEl = (tag, cls) => {
+        const e = document.createElement(tag);
+        if (cls) e.className = cls;
+        return e;
+      };
+      const clear = (el) => { while (el.firstChild) el.removeChild(el.firstChild); };
+
+      // ============ Theme toggle (View Transitions when supported) ============
       const themeKey = 'theme';
       const sysMq = window.matchMedia('(prefers-color-scheme: dark)');
-
       function applyTheme() {
         const mode = localStorage.getItem(themeKey) || 'system';
         const dark = mode === 'dark' || (mode === 'system' && sysMq.matches);
@@ -1282,13 +1491,21 @@ npm run smoke:stdio
         else localStorage.setItem(themeKey, mode);
         applyTheme();
       }
+      function toggleTheme(mode, ev) {
+        if (!document.startViewTransition || prefersReduced) { setTheme(mode); return; }
+        if (ev && ev.clientX) {
+          document.documentElement.style.setProperty('--tx', ev.clientX + 'px');
+          document.documentElement.style.setProperty('--ty', ev.clientY + 'px');
+        }
+        document.startViewTransition(() => setTheme(mode));
+      }
       document.querySelectorAll('[data-theme]').forEach((b) => {
-        b.addEventListener('click', () => setTheme(b.dataset.theme));
+        b.addEventListener('click', (ev) => toggleTheme(b.dataset.theme, ev));
       });
       sysMq.addEventListener('change', applyTheme);
       applyTheme();
 
-      // ====== Copy buttons ======
+      // ============ Copy buttons ============
       document.querySelectorAll('[data-copy]').forEach((btn) => {
         btn.addEventListener('click', async () => {
           const pre = btn.parentElement.querySelector('pre');
@@ -1298,10 +1515,7 @@ npm run smoke:stdio
             const orig = btn.textContent;
             btn.textContent = 'copied';
             btn.classList.add('copied');
-            setTimeout(() => {
-              btn.textContent = orig;
-              btn.classList.remove('copied');
-            }, 1400);
+            setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 1400);
           } catch (e) {
             btn.textContent = 'failed';
             setTimeout(() => { btn.textContent = 'copy'; }, 1400);
@@ -1309,7 +1523,7 @@ npm run smoke:stdio
         });
       });
 
-      // ====== Reveal on scroll ======
+      // ============ Reveal on scroll ============
       const io = new IntersectionObserver((entries) => {
         entries.forEach((e) => {
           if (e.isIntersecting) {
@@ -1319,6 +1533,254 @@ npm run smoke:stdio
         });
       }, { rootMargin: '-8% 0px -8% 0px', threshold: 0.03 });
       document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
+
+      // ============ Hero cursor-follow spotlight ============
+      const hero = document.getElementById('hero');
+      const spot = document.getElementById('spotlight');
+      if (hero && spot && !prefersReduced && window.matchMedia('(pointer: fine)').matches) {
+        hero.addEventListener('pointermove', (e) => {
+          const r = hero.getBoundingClientRect();
+          spot.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+          spot.style.setProperty('--my', (e.clientY - r.top)  + 'px');
+          spot.classList.add('lit');
+        });
+        hero.addEventListener('pointerleave', () => spot.classList.remove('lit'));
+      }
+
+      // ============ Animated counters ============
+      const easeOutCubic = (x) => 1 - Math.pow(1 - x, 3);
+      const counterIO = new IntersectionObserver((entries) => {
+        entries.forEach((e) => {
+          if (!e.isIntersecting) return;
+          counterIO.unobserve(e.target);
+          const el = e.target;
+          const target = parseInt(el.dataset.count, 10) || 0;
+          if (prefersReduced) { el.textContent = String(target); return; }
+          el.dataset.running = 'true';
+          const dur = 1200;
+          const start = performance.now();
+          (function tick(now) {
+            const t = Math.min(1, ((now || performance.now()) - start) / dur);
+            el.textContent = String(Math.round(target * easeOutCubic(t)));
+            if (t < 1) requestAnimationFrame(tick);
+            else delete el.dataset.running;
+          })();
+        });
+      }, { threshold: 0.5 });
+      document.querySelectorAll('.counter').forEach((el) => counterIO.observe(el));
+
+      // ============ Cycling terminal demo ============
+      const demos = [
+        {
+          prompt: [
+            { text: 'Open a new matter for ', tone: 'fg' },
+            { text: 'Jane Smith', tone: 'accent' },
+            { text: ' — landlord/tenant,\nflat fee ', tone: 'fg' },
+            { text: '$2,500', tone: 'accent' },
+            { text: '. Add an opening\nnote and an intake task due Friday.', tone: 'fg' },
+          ],
+          tools: [
+            { name: 'clio_search_contacts',        meta: 'no duplicate' },
+            { name: 'clio_create_person_contact',  meta: '#10421' },
+            { name: 'clio_create_matter',          meta: 'flat-rate patched' },
+            { name: 'clio_create_note',            meta: '' },
+            { name: 'clio_create_task',            meta: 'due 2026-05-22' },
+          ],
+          result: '→ matter #4892 opened',
+        },
+        {
+          prompt: [
+            { text: 'How many hours has ', tone: 'fg' },
+            { text: 'Jane', tone: 'accent' },
+            { text: ' logged on\nmatter ', tone: 'fg' },
+            { text: '4821', tone: 'accent' },
+            { text: ' this month?', tone: 'fg' },
+          ],
+          tools: [
+            { name: 'clio_search_contacts',  meta: 'Jane Doe #842' },
+            { name: 'clio_list_activities',  meta: 'matter_id=4821 · 42 entries' },
+            { name: 'aggregate',             meta: 'sum quantity_in_hours' },
+          ],
+          result: '→ 47.5 billable hours · $23,750 unbilled',
+        },
+        {
+          prompt: [
+            { text: 'Show me bills awaiting payment\nover ', tone: 'fg' },
+            { text: '60 days', tone: 'accent' },
+            { text: ', grouped by client.', tone: 'fg' },
+          ],
+          tools: [
+            { name: 'clio_list_bills',  meta: 'state=awaiting_payment · 127' },
+            { name: 'filter',           meta: 'due_at < 2026-03-18' },
+            { name: 'aggregate',        meta: 'by client · 31 clients' },
+          ],
+          result: '→ $284,500 outstanding · top: Acme Corp $42K',
+        },
+        {
+          prompt: [
+            { text: 'Add a note to matter ', tone: 'fg' },
+            { text: '4821', tone: 'accent' },
+            { text: ":\ntoday's call confirmed retainer.", tone: 'fg' },
+          ],
+          tools: [
+            { name: 'clio_get_matter',   meta: 'etag fetched' },
+            { name: 'clio_create_note',  meta: 'matter_id=4821' },
+          ],
+          result: '→ note attached · audit logged',
+        },
+      ];
+
+      const promptEl = document.getElementById('termPrompt');
+      const outEl    = document.getElementById('termOut');
+      const resEl    = document.getElementById('termResult');
+      const tabs     = document.querySelectorAll('.term-tab');
+
+      function setTab(i) { tabs.forEach((t, idx) => t.classList.toggle('is-active', idx === i)); }
+
+      function setupPrompt() {
+        clear(promptEl);
+        const marker = makeEl('span', 'marker'); marker.textContent = '›';
+        const typed  = makeEl('span');
+        const caret  = makeEl('span', 'caret');
+        promptEl.append(marker, typed, caret);
+        return { typed, caret };
+      }
+
+      async function typePrompt(parts) {
+        const { typed, caret } = setupPrompt();
+        for (const part of parts) {
+          const span = makeEl('span', part.tone === 'accent' ? 'accent' : null);
+          typed.appendChild(span);
+          for (const ch of part.text) {
+            if (ch === '\n') span.appendChild(document.createElement('br'));
+            else span.appendChild(document.createTextNode(ch));
+            await sleep(prefersReduced ? 0 : 14 + Math.random() * 18);
+          }
+        }
+        return caret;
+      }
+
+      function makeRow(name, meta) {
+        const row   = makeEl('div', 'term-row');
+        const check = makeEl('span', 'check'); check.textContent = '✓';
+        const body  = makeEl('span');
+        const acc   = makeEl('span', 'acc');   acc.textContent = name;
+        body.appendChild(acc);
+        if (meta) {
+          body.appendChild(document.createTextNode(' '));
+          const m = makeEl('span', 'meta'); m.textContent = meta;
+          body.appendChild(m);
+        }
+        row.append(check, body);
+        return row;
+      }
+
+      async function runDemo(i) {
+        if (!promptEl) return;
+        setTab(i);
+        const d = demos[i];
+        clear(promptEl);
+        clear(outEl);
+        resEl.classList.remove('in');
+        resEl.textContent = '';
+        await sleep(120);
+        const caret = await typePrompt(d.prompt);
+        if (caret) caret.remove();
+        for (const t of d.tools) {
+          const row = makeRow(t.name, t.meta);
+          outEl.appendChild(row);
+          await sleep(120);
+          requestAnimationFrame(() => row.classList.add('in'));
+          await sleep(prefersReduced ? 0 : 320);
+        }
+        await sleep(280);
+        resEl.textContent = d.result;
+        resEl.classList.add('in');
+      }
+
+      (async function loop() {
+        if (!promptEl) return;
+        let i = 0;
+        await runDemo(i);
+        if (prefersReduced) return;
+        while (true) {
+          await sleep(4200);
+          i = (i + 1) % demos.length;
+          await runDemo(i);
+        }
+      })();
+      tabs.forEach((t) => t.addEventListener('click', () => runDemo(parseInt(t.dataset.tab, 10))));
+
+      // ============ Tool catalog filter (DOM-only) ============
+      const tf            = document.getElementById('toolFilter');
+      const tfWrap        = document.getElementById('toolSearch');
+      const tfClear       = document.getElementById('toolClear');
+      const toolEmpty     = document.getElementById('toolEmpty');
+      const toolEmptyBtn  = document.getElementById('toolEmptyClear');
+      const toolCards     = Array.from(document.querySelectorAll('[data-tool]'));
+
+      // Cache each li's original textContent so we can rebuild with <mark>
+      toolCards.forEach((card) => {
+        const lis = card.querySelectorAll('li');
+        card._origText = Array.from(lis).map((li) => li.textContent);
+      });
+
+      function filterTools() {
+        const q = (tf.value || '').trim().toLowerCase();
+        tfWrap.classList.toggle('has-value', q.length > 0);
+        let visible = 0;
+        toolCards.forEach((card) => {
+          const lis = card.querySelectorAll('li');
+          lis.forEach((li, i) => { li.textContent = card._origText[i]; });
+          if (!q) {
+            card.classList.remove('hide');
+            visible++;
+            return;
+          }
+          const haystack = (card.dataset.domain + ' ' + card.dataset.tools + ' ' + card.textContent).toLowerCase();
+          const match = haystack.includes(q);
+          card.classList.toggle('hide', !match);
+          if (!match) return;
+          visible++;
+          lis.forEach((li, i) => {
+            const txt = card._origText[i];
+            const idx = txt.toLowerCase().indexOf(q);
+            if (idx < 0) return;
+            clear(li);
+            li.appendChild(document.createTextNode(txt.slice(0, idx)));
+            const m = document.createElement('mark');
+            m.textContent = txt.slice(idx, idx + q.length);
+            li.appendChild(m);
+            li.appendChild(document.createTextNode(txt.slice(idx + q.length)));
+          });
+        });
+        toolEmpty.classList.toggle('show', visible === 0);
+      }
+
+      if (tf) {
+        tf.addEventListener('input', filterTools);
+        tfClear.addEventListener('click', () => { tf.value = ''; filterTools(); tf.focus(); });
+        toolEmptyBtn.addEventListener('click', () => { tf.value = ''; filterTools(); tf.focus(); });
+        document.addEventListener('keydown', (e) => {
+          if (e.key === '/' && !['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) {
+            e.preventDefault();
+            tf.focus();
+          }
+        });
+      }
+
+      // ============ Magnetic tilt on feature cards ============
+      if (!prefersReduced && window.matchMedia('(pointer: fine)').matches) {
+        document.querySelectorAll('.tilt').forEach((el) => {
+          el.addEventListener('pointermove', (e) => {
+            const r = el.getBoundingClientRect();
+            const x = (e.clientX - r.left) / r.width - 0.5;
+            const y = (e.clientY - r.top)  / r.height - 0.5;
+            el.style.transform = `perspective(900px) rotateX(${(-y * 4).toFixed(2)}deg) rotateY(${(x * 4).toFixed(2)}deg) translateY(-2px)`;
+          });
+          el.addEventListener('pointerleave', () => { el.style.transform = ''; });
+        });
+      }
     </script>
   </body>
 </html>
