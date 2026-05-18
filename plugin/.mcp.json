@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "clio-manage": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/../build/index.js", "--stdio"],
+      "env": {
+        "CLIO_CLIENT_ID": "${CLIO_CLIENT_ID}",
+        "CLIO_CLIENT_SECRET": "${CLIO_CLIENT_SECRET}"
+      }
+    }
+  }
+}

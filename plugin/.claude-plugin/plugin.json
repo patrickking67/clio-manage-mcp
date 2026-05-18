@@ -1,0 +1,23 @@
+{
+  "name": "clio-manage",
+  "version": "0.1.0",
+  "description": "Skills, agents, and an MCP wiring for Clio Manage — matters, contacts, time, billing, calendar, documents, tasks.",
+  "author": {
+    "name": "DivergeIT",
+    "url": "https://github.com/patrickking67/clio-manage-mcp"
+  },
+  "homepage": "https://github.com/patrickking67/clio-manage-mcp",
+  "repository": "https://github.com/patrickking67/clio-manage-mcp",
+  "license": "MIT",
+  "keywords": [
+    "clio",
+    "clio-manage",
+    "legal",
+    "law-firm",
+    "mcp",
+    "practice-management",
+    "matters",
+    "billing",
+    "time-entry"
+  ]
+}

@@ -59,7 +59,10 @@ append-only audit log, and bearer-token HTTPS auth in production.
 3. [Quick start — Azure](#quick-start--azure)
 4. [Quick start — local](#quick-start--local)
 5. [Tool catalog](#tool-catalog)
-6. [Resources](#resources)
+6. [Claude Code plugin](#claude-code-plugin)
+7. [Optional connectors](#optional-connectors)
+8. [Landing page](#landing-page)
+9. [Resources](#resources)
 7. [Configuration](#configuration)
 8. [Security & compliance posture](#security--compliance-posture)
 9. [Cost (Azure)](#cost-azure)
@@ -578,6 +581,73 @@ scripts/smoke-*.mjs       end-to-end MCP protocol tests
 docs/                     deployment-local, deployment-azure, oauth, security
 examples/                 client configs + bootstrap-refresh-token.mjs
 ```
+
+---
+
+## Claude Code plugin
+
+This repo also ships a Claude Code plugin at [`plugin/`](plugin/) that bundles
+ten skills, two agents, and an `.mcp.json` wiring on top of the MCP server.
+The MCP gives Claude *capability* (41 tools); the plugin gives Claude
+*judgment* — when to call which tool, how to chain them into intake/billing
+workflows, and what ABA Op 512 guardrails apply.
+
+```bash
+# After cloning and building the MCP (see Quick start — local)
+claude /plugin marketplace add ./plugin
+claude /plugin install clio-manage@clio-manage
+```
+
+Or install from GitHub directly:
+
+```bash
+claude /plugin marketplace add patrickking67/clio-manage-mcp
+claude /plugin install clio-manage@clio-manage
+```
+
+**Skills** — `clio-setup`, `clio-search`, `clio-best-practices`,
+`clio-matter-intake`, `clio-time-entry`, `clio-billing`,
+`clio-document-automation`, `clio-calendar`, `clio-contacts`,
+`clio-trust-accounting`.
+
+**Agents** — `clio-intake-agent` (autonomous intake from a single prompt),
+`clio-data-analyst` (read-only analyses for partner reports, enforced via
+tool allowlist).
+
+Full plugin docs: [`plugin/README.md`](plugin/README.md).
+
+---
+
+## Optional connectors
+
+Clio is the only required MCP. Other connectors are recommended for specific
+skills but never required:
+
+| Tier | Connector | What it adds |
+|---|---|---|
+| Recommended | Microsoft 365 | Outlook, Calendar, SharePoint, Word, Teams |
+| Recommended | Google Workspace | Gmail, Calendar, Drive, Docs |
+| Useful | DocuSign | eSignature for engagement letters |
+| Useful | Stripe | Payments + Clio Payments reconciliation |
+| Useful | Slack / Teams | Internal firm comms |
+| Ops | Sentry / App Insights | Monitor the MCP server in production |
+
+Setup steps for each: [`docs/connectors.md`](docs/connectors.md).
+
+---
+
+## Landing page
+
+A static GitHub Pages site lives at [`docs/`](docs/) and deploys via
+[`.github/workflows/pages.yml`](.github/workflows/pages.yml). Enable
+**Settings → Pages → Source: GitHub Actions** on the repo and the next push
+to `main` publishes it. Public URL:
+
+> https://patrickking67.github.io/clio-manage-mcp/
+
+The site is built with Tailwind CSS via CDN (no build step) and renders
+hero, feature, tool-catalog, install, plugin, connectors, security, and FAQ
+sections from a single `docs/index.html`.
 
 ---
 
