@@ -7,6 +7,12 @@ MCPs we recommend. None of them are required for the Clio plugin to function;
 each skill that benefits from one says so explicitly and degrades gracefully
 if the connector is absent.
 
+> **Note** — Clio Manage itself is now consumed as a **remote OAuth custom
+> connector** in Claude: each user adds `${PUBLIC_BASE_URL}/mcp` under
+> **Settings → Connectors** and signs in to their own Clio account. See the
+> main [README](../README.md) and [docs/deployment-azure.md](deployment-azure.md).
+> The connectors below are *additional* companions, not replacements for it.
+
 ## Tiers
 
 | Tier | What it adds | Examples |

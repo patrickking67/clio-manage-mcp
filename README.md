@@ -7,9 +7,9 @@
 [![Build](https://github.com/patrickking67/clio-mcp/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/patrickking67/clio-mcp/actions/workflows/build.yml)
 [![Status: beta](https://img.shields.io/badge/status-beta-orange.svg)](#roadmap)
 
-> A Model Context Protocol server for **Clio Manage** — built to run firm-wide
-> on Azure Container Apps, with a fully-featured local stdio path for
-> development and single-user installs. Same binary, two transports.
+> A Model Context Protocol server for **Clio Manage** — deployed on Azure as a
+> **per-user remote OAuth connector** for Claude, with a full-featured local
+> stdio path for development and solo use. Same binary, two ways to connect.
 
 **Built with**
 
@@ -21,31 +21,42 @@
 ![Bicep](https://img.shields.io/badge/Bicep-519aba?style=for-the-badge&logoColor=white)
 ![Express](https://img.shields.io/badge/Express-000000?style=for-the-badge&logo=express&logoColor=white)
 ![Clio](https://img.shields.io/badge/Clio_Manage_v4-2D3B4D?style=for-the-badge)
-![OAuth 2.0](https://img.shields.io/badge/OAuth_2.0-EB5424?style=for-the-badge&logo=oauth&logoColor=white)
+![OAuth 2.1](https://img.shields.io/badge/OAuth_2.1-EB5424?style=for-the-badge&logo=oauth&logoColor=white)
 ![AES-256-GCM](https://img.shields.io/badge/AES--256--GCM-1a7f37?style=for-the-badge&logo=keepassxc&logoColor=white)
 
 This server is the boundary between an AI agent (Claude or any
 MCP-compatible client) and your firm's Clio Manage instance. It speaks Clio
 v4 fluently — matters, contacts, activities, tasks, notes, calendar,
-documents, bills — and it does so behind OAuth-with-encrypted-tokens, an
-append-only audit log, and bearer-token HTTPS auth in production.
+documents, bills — and exposes it as a **remote custom connector**: each
+attorney adds one URL in Claude, signs in to **their own** Clio account, and
+is connected. Tokens are encrypted at rest, every tool call is audited, and
+nothing about a user's Clio data is shared with anyone else's session.
 
 **What's in the box**
 
+- A **remote OAuth 2.1 custom connector** for Claude: per-user sign-in to Clio,
+  Dynamic Client Registration, PKCE, served from Azure Container Apps
 - 41 tools across 11 Clio domains, plus a generic `clio_api_request` escape hatch
 - A composite intake workflow (`clio_open_new_matter`) that chains client +
   matter + opening note + intake task into one agent action
-- OAuth 2.0 authorization-code flow with AES-256-GCM token-at-rest
+- Per-session, AES-256-GCM encrypted Clio tokens, multi-replica safe on shared storage
 - Append-only JSONL audit log designed around ABA Formal Opinion 512
 
 **What's different about this one**
 
+- **Per-user OAuth, not a shared key.** The headline mode (`MCP_AUTH_MODE=oauth`)
+  turns this server into an OAuth 2.0 Authorization Server + Protected Resource
+  that bridges each Claude user to their own Clio account. No bearer tokens to
+  hand out, no shared login. Claude does discovery → registration → PKCE → the
+  user signs in on Clio. A simpler shared-token `static` mode is still available.
 - **Azure-native.** A single `azd up` provisions Container Apps + ACR + Key
-  Vault + Azure Files + Log Analytics. Secrets flow from Key Vault to the
-  container via managed identity — never on disk.
-- **End-to-end verified.** `npm run smoke:stdio` and `npm run smoke:http`
-  drive a real MCP session against the built binary. CI blocks regressions in
-  protocol shape, tool registration, auth gating, and resource publication.
+  Vault + Azure Files + Log Analytics, defaults to OAuth mode, and auto-sets
+  `PUBLIC_BASE_URL` from the environment domain. Secrets flow from Key Vault to
+  the container via managed identity — never on disk.
+- **End-to-end verified.** `npm run smoke:stdio`, `npm run smoke:http`, and
+  `npm run smoke:oauth` drive a real MCP session — including the full OAuth
+  discovery handshake — against the built binary. CI blocks regressions in protocol
+  shape, tool registration, auth gating, and resource publication.
 - **Multi-region.** US / CA / EU / AU Clio endpoints via one `CLIO_REGION` env.
 
 ---
@@ -53,31 +64,33 @@ append-only audit log, and bearer-token HTTPS auth in production.
 ## Contents
 
 1. [What you can ask Claude](#what-you-can-ask-claude)
-2. [Architecture](#architecture)
-3. [Quick start — Azure](#quick-start--azure)
-4. [Quick start — local](#quick-start--local)
-5. [Tool catalog](#tool-catalog)
-6. [Claude Code plugin](#claude-code-plugin)
-7. [Optional connectors](#optional-connectors)
-8. [Landing page](#landing-page)
-9. [Resources](#resources)
-7. [Configuration](#configuration)
-8. [Security & compliance posture](#security--compliance-posture)
-9. [Cost (Azure)](#cost-azure)
-10. [FAQ](#faq)
-11. [Verification](#verification)
-12. [Confirmed Clio API quirks](#confirmed-clio-api-quirks)
-13. [Development](#development)
-14. [Related work](#related-work)
-15. [Roadmap](#roadmap)
-16. [License](#license)
+2. [How connecting works](#how-connecting-works)
+3. [Architecture](#architecture)
+4. [Quick start — Azure (remote connector)](#quick-start--azure-remote-connector)
+5. [Quick start — local (stdio)](#quick-start--local-stdio)
+6. [Tool catalog](#tool-catalog)
+7. [Resources](#resources)
+8. [Configuration](#configuration)
+9. [Security & compliance posture](#security--compliance-posture)
+10. [Cost (Azure)](#cost-azure)
+11. [FAQ](#faq)
+12. [Verification](#verification)
+13. [Confirmed Clio API quirks](#confirmed-clio-api-quirks)
+14. [Claude Code plugin](#claude-code-plugin)
+15. [Optional connectors](#optional-connectors)
+16. [Landing page](#landing-page)
+17. [Development](#development)
+18. [Related work](#related-work)
+19. [Roadmap](#roadmap)
+20. [License](#license)
 
 ---
 
 ## What you can ask Claude
 
-Once wired up, these are real prompts that route through the connector. The
+Once connected, these are real prompts that route through the connector. The
 tool calls happen transparently; the agent picks what to call from the catalog.
+In OAuth mode each result reflects **that user's** Clio account.
 
 **Matter lookup**
 
@@ -123,33 +136,67 @@ or mirrored.
 
 ---
 
+## How connecting works
+
+There are two ways to connect, selected by `MCP_AUTH_MODE`.
+
+**OAuth — remote custom connector (headline, Azure default).** Each user adds
+the connector once and signs in to their own Clio account:
+
+1. In Claude: **Settings → Connectors → Add custom connector**.
+2. Paste the connector URL: `${PUBLIC_BASE_URL}/mcp`
+   (e.g. `https://ca-cliomcp-prod.<region>.azurecontainerapps.io/mcp`).
+3. Claude runs OAuth discovery, registers itself via Dynamic Client
+   Registration, and starts a PKCE authorization-code flow.
+4. The user is redirected to **Clio** to sign in and authorize.
+5. Clio returns to the server's `/oauth/clio/callback`, the server bridges the
+   Clio tokens into an MCP session, and Claude lands back **connected**.
+
+No bearer token is pasted anywhere. Each user's Clio tokens are encrypted and
+isolated to their own session.
+
+**Static — shared bearer token (secondary, single-tenant).** A simpler mode for
+solo or single-account setups: one shared bearer token gates `/mcp`, mapped to a
+single shared Clio account seeded from a refresh token. See
+[Quick start — Azure](#quick-start--azure-remote-connector) (optional static
+variant) and [docs/oauth-setup.md](docs/oauth-setup.md).
+
+**Local (stdio).** For development and solo use, the binary runs as a local
+stdio MCP server and authorizes through the loopback OAuth flow — no public URL
+needed. See [Quick start — local](#quick-start--local-stdio).
+
+---
+
 ## Architecture
 
-Azure deployment (primary):
+Azure deployment in OAuth mode (primary). The server is an OAuth 2.0
+Authorization Server + Protected Resource that bridges each Claude user to their
+own Clio account:
 
 ```
                     Azure subscription
-   ┌─────────────────────────────────────────────────────────┐
-   │                                                          │
-   │   ┌────────────┐  HTTPS  ┌──────────────┐   ┌─────────┐ │
-   │   │  MCP host  │────────►│ Container    │──►│ Clio v4 │ │
-   │   │ (Claude /  │  Bearer │ Apps         │   │  API    │ │
-   │   │  agent fw) │  token  │ (stateless)  │   └─────────┘ │
-   │   └────────────┘         └──────┬───────┘                │
-   │                                 │                        │
-   │                  ┌──────────────┼──────────────┐         │
-   │                  │              │              │         │
-   │             ┌────▼─────┐  ┌─────▼──────┐ ┌─────▼──────┐ │
-   │             │ Key Vault│  │ Azure Files│ │ App Insights│ │
-   │             │  (RBAC)  │  │  /state    │ │ + Log Anal.│ │
-   │             └──────────┘  └────────────┘ └────────────┘ │
-   │                  ▲                                       │
-   │         ┌────────┴─────────┐                             │
-   │         │ Managed identity │                             │
-   │         │ (KV secrets user │                             │
-   │         │  + ACR pull)     │                             │
-   │         └──────────────────┘                             │
-   └─────────────────────────────────────────────────────────┘
+   ┌──────────────────────────────────────────────────────────┐
+   │                                                           │
+   │   ┌────────────┐  HTTPS   ┌──────────────┐   ┌─────────┐  │
+   │   │  Claude    │─────────►│ Container    │──►│ Clio v4 │  │
+   │   │ (each user │  OAuth   │ Apps         │   │  API    │  │
+   │   │  signs in) │  + /mcp  │ (stateless)  │   └─────────┘  │
+   │   └────────────┘          └──────┬───────┘                │
+   │       ▲  per-user Clio sign-in   │                        │
+   │       └──────────────────────────┘ (302 via Clio login)   │
+   │                  ┌───────────────┼──────────────┐         │
+   │                  │               │              │         │
+   │             ┌────▼─────┐  ┌──────▼─────┐ ┌──────▼──────┐  │
+   │             │ Key Vault│  │ Azure Files│ │ App Insights│  │
+   │             │  (RBAC)  │  │  /state    │ │ + Log Anal. │  │
+   │             └──────────┘  └────────────┘ └─────────────┘  │
+   │                  ▲     (tokens.enc + sessions/ + audit)    │
+   │         ┌────────┴─────────┐                               │
+   │         │ Managed identity │                               │
+   │         │ (KV secrets user │                               │
+   │         │  + ACR pull)     │                               │
+   │         └──────────────────┘                               │
+   └──────────────────────────────────────────────────────────┘
 ```
 
 Or as a Mermaid graph (renders inline on GitHub):
@@ -160,10 +207,10 @@ flowchart LR
   classDef clio  fill:#fef3c7,stroke:#92400e,color:#000;
   classDef host  fill:#dcfce7,stroke:#166534,color:#000;
 
-  H[MCP host<br/>Claude / agent fw]:::host
+  H[Claude<br/>per-user connector]:::host
   subgraph AZ[Azure subscription]
     direction TB
-    CA[Container App<br/>stateless HTTP]:::azure
+    CA[Container App<br/>OAuth AS + /mcp]:::azure
     KV[Key Vault<br/>RBAC]:::azure
     SF[Azure Files<br/>/state mount]:::azure
     LA[Log Analytics<br/>App Insights]:::azure
@@ -172,8 +219,10 @@ flowchart LR
   end
   CLIO[Clio v4 API<br/>us · ca · eu · au]:::clio
 
-  H -- HTTPS + Bearer --> CA
-  CA -- OAuth + REST --> CLIO
+  H -- OAuth discovery + DCR + PKCE --> CA
+  H -- user sign-in (302) --> CLIO
+  CLIO -- /oauth/clio/callback --> CA
+  CA -- REST (per-user token) --> CLIO
   CA --- SF
   CA -. logs/metrics .-> LA
   MI -. pull image .-> ACR
@@ -189,59 +238,79 @@ Resources provisioned by [`infra/main.bicep`](infra/main.bicep):
 | Log Analytics + Application Insights | Logs, metrics, traces                                    |
 | Azure Container Registry (Basic)     | Private image registry, anonymous pull disabled          |
 | User-assigned managed identity       | ACR pull + Key Vault Secrets User                        |
-| Azure Key Vault (RBAC, soft-delete)  | Stores Clio + bearer-token secrets                       |
-| Azure Storage + File Share           | Persistent `/state` mount (tokens.enc + audit.log)       |
+| Azure Key Vault (RBAC, soft-delete)  | Stores the Clio app + encryption secrets                 |
+| Azure Storage + File Share           | Persistent `/state` mount (tokens.enc, sessions/, audit) |
 | Container Apps environment           | Hosts the workload, file share registered                |
-| Container App                        | HTTPS ingress, autoscale 1→4 by default                  |
+| Container App                        | HTTPS ingress, OAuth default, autoscale 1→4 by default   |
 
-### Request lifecycle
+### HTTP surface
 
-What happens when an agent invokes a tool — bearer-auth, token refresh,
-Clio call, and audit log, end-to-end:
+| Endpoint | Purpose |
+|---|---|
+| `GET /healthz` | Liveness — always 200 (`{ status, server, auth_mode, region }`) |
+| `GET /readyz` | Readiness — 200 in OAuth mode; in static/hybrid, 503 until the shared account is authenticated |
+| `POST /mcp` | The MCP endpoint (auth-protected). On 401 it returns `WWW-Authenticate` with `resource_metadata=".../.well-known/oauth-protected-resource/mcp"` |
+| `GET\|DELETE /mcp` | 405 (the server is stateless POST-only) |
+
+In `oauth` / `hybrid` mode the server additionally serves the OAuth
+Authorization Server + Protected Resource surface:
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /.well-known/oauth-authorization-server` | Authorization Server metadata (discovery) |
+| `GET /.well-known/oauth-protected-resource/mcp` | Protected Resource metadata for `/mcp` |
+| `POST /register` | Dynamic Client Registration |
+| `GET /authorize` | Authorization endpoint (302s the user to Clio) |
+| `POST /token` | Token endpoint (PKCE; authorization_code + refresh_token) |
+| `POST /revoke` | Token revocation |
+| `GET /oauth/clio/callback` | Clio's redirect target; completes the bridge |
+
+### Request lifecycle (OAuth mode)
+
+What happens when a connected user invokes a tool — session-token check, Clio
+token refresh, Clio call, and audit log, end-to-end:
 
 ```mermaid
 sequenceDiagram
   autonumber
-  participant H as MCP host<br/>(Claude / agent)
+  participant H as Claude<br/>(connected user)
   participant S as Container App<br/>/mcp endpoint
-  participant T as Tool handler
-  participant K as Token cache<br/>(/state/tokens.enc)
+  participant V as OAuth provider<br/>(session verify)
+  participant K as Session store<br/>(/state, AES-256-GCM)
   participant C as Clio v4 API
   participant A as Audit log<br/>(/state/audit.log)
 
-  H->>+S: POST /mcp · Bearer <token><br/>{ method: tools/call, name, args }
-  S->>S: timingSafeEqual(sha256(token), accept[])
-  Note right of S: 401 on mismatch
-  S->>+T: dispatch · Zod-validated args
-  T->>K: get access token
-  alt token expired (or within 60s)
+  H->>+S: POST /mcp · Bearer <MCP session token><br/>{ method: tools/call, name, args }
+  S->>V: verify access token
+  Note right of V: 401 + WWW-Authenticate<br/>resource_metadata on miss
+  V->>K: load session → bridged Clio tokens
+  alt Clio token expired (or near expiry)
     K->>+C: POST /oauth/token (refresh_token)
     C-->>-K: new access + refresh
-    K->>K: re-encrypt blob<br/>(AES-256-GCM)
+    K->>K: re-encrypt session (AES-256-GCM)
   end
-  T->>+C: GET/POST /api/v4/... · Bearer <access>
-  C-->>-T: { data, meta }
-  T-->>-S: tool result
+  S->>+C: GET/POST /api/v4/... · Bearer <Clio access>
+  C-->>-S: { data, meta }
   S->>A: append { ts, tool, outcome, duration_ms,<br/>user_id, matter_id, result_count, transport, caller_id }
   S-->>-H: JSON-RPC result
 ```
 
 ---
 
-## Quick start — Azure
+## Quick start — Azure (remote connector)
 
-> Primary path. ~15 minutes the first time. Everything after step 2 is one-shot.
+> Primary path. ~15 minutes the first time. Ends with attorneys adding the
+> connector in Claude and signing in to Clio themselves.
 
 ### Prerequisites
 
 - Azure subscription with the `Microsoft.App` and `Microsoft.ContainerRegistry`
   providers registered
 - `az`, `azd`, and Docker installed locally
-- A **Clio Developer Application** with redirect URI
-  `http://127.0.0.1:5678/callback` (one-time, used only to seed a refresh
-  token from your laptop — never has to be cloud-reachable)
+- A **Clio Developer Application** (one per deployment). You'll register its
+  redirect URI in step 4, after `azd up` tells you the public URL.
 
-### 1. Provision
+### 1. Provision (defaults to OAuth mode)
 
 ```bash
 az login
@@ -252,24 +321,21 @@ azd env set CLIO_REGION us           # us | ca | eu | au
 azd up                                # builds image, runs Bicep, deploys
 ```
 
-### 2. Populate Key Vault (5 secrets)
+`azd up` deploys with `MCP_AUTH_MODE=oauth` (the infra default) and **auto-sets
+`PUBLIC_BASE_URL`** from the Container Apps environment domain — you never set it
+by hand.
+
+### 2. Populate Key Vault (3 secrets)
+
+OAuth mode needs exactly three secrets. (No shared bearer token, no bootstrap
+refresh token — each user authorizes themselves.)
 
 ```bash
 KV=$(azd env get-values | awk -F= '/AZURE_KEY_VAULT_NAME/{print $2}' | tr -d '"')
 
-az keyvault secret set --vault-name "$KV" --name clio-client-id     --value "<from Clio>"
-az keyvault secret set --vault-name "$KV" --name clio-client-secret --value "<from Clio>"
+az keyvault secret set --vault-name "$KV" --name clio-client-id      --value "<from Clio>"
+az keyvault secret set --vault-name "$KV" --name clio-client-secret  --value "<from Clio>"
 az keyvault secret set --vault-name "$KV" --name clio-encryption-key --value "$(openssl rand -hex 32)"
-
-# A bearer token your MCP clients will present on /mcp:
-TOKEN=$(openssl rand -base64 32 | tr -d '=+/' | head -c 48)
-az keyvault secret set --vault-name "$KV" --name clio-http-auth-tokens --value "$TOKEN"
-echo "Bearer token (save this): $TOKEN"
-
-# One-time local OAuth dance to mint the refresh token used at cold start:
-node examples/bootstrap-refresh-token.mjs > /tmp/refresh
-az keyvault secret set --vault-name "$KV" --name clio-refresh-token --value "$(cat /tmp/refresh)"
-shred -u /tmp/refresh 2>/dev/null || rm /tmp/refresh
 ```
 
 ### 3. Restart the revision so the secrets bind
@@ -280,23 +346,56 @@ RG=$(azd env get-values | awk -F= '/AZURE_RESOURCE_GROUP/{print $2}' | tr -d '"'
 az containerapp revision restart -n "$APP" -g "$RG"
 ```
 
-### 4. Verify
+### 4. Register the redirect URI in Clio, then verify
+
+Grab the public URL and register the connector callback on your Clio Developer
+Application (*Settings → Developer Applications*):
 
 ```bash
-MCP_URL=$(azd env get-values | awk -F= '/SERVICE_API_MCP_ENDPOINT/{print $2}' | tr -d '"')
-curl -sS "${MCP_URL%/mcp}/healthz"
-# {"status":"ok","server":"clio-mcp","authenticated":true,"region":"us"}
+BASE=$(azd env get-values | awk -F= '/SERVICE_API_URI/{print $2}' | tr -d '"')
+echo "Register this Redirect URI in Clio: ${BASE}/oauth/clio/callback"
+
+curl -sS "${BASE}/healthz"
+# {"status":"ok","server":"clio-mcp","auth_mode":"oauth","region":"us"}
 ```
 
-Wire `$MCP_URL` into any MCP host that supports Streamable HTTP, presenting
-`Authorization: Bearer $TOKEN`. Full walk-through (custom domain, logs,
-export, rotation): [docs/deployment-azure.md](docs/deployment-azure.md).
+### 5. Add the connector in Claude → sign in to Clio
+
+Share the connector URL with each attorney (it's the same for everyone):
+
+```
+${PUBLIC_BASE_URL}/mcp      # e.g. https://<your-app>.<region>.azurecontainerapps.io/mcp
+```
+
+In Claude: **Settings → Connectors → Add custom connector → paste the URL.**
+Claude runs OAuth discovery + dynamic client registration, redirects the user to
+**Clio** to sign in and authorize, and returns connected. Each user connects
+their own Clio account.
+
+Full walk-through (custom domain, logs, audit export, rotation, troubleshooting,
+and the optional shared-account variant): [docs/deployment-azure.md](docs/deployment-azure.md).
+
+### Optional: shared-account (static) variant
+
+For a single-tenant deployment where one shared Clio login is acceptable, deploy
+in `static` mode instead and seed a shared bearer token + refresh token:
+
+```bash
+azd env set MCP_AUTH_MODE static
+azd up
+# then also set the two static-mode secrets in Key Vault and restart:
+#   clio-http-auth-tokens   (a bearer token your clients present on /mcp)
+#   clio-refresh-token      (from examples/bootstrap-refresh-token.mjs)
+```
+
+Details: [docs/deployment-azure.md](docs/deployment-azure.md) and
+[docs/oauth-setup.md](docs/oauth-setup.md).
 
 ---
 
-## Quick start — local
+## Quick start — local (stdio)
 
-> Development, single-user, or seeding the Azure refresh token.
+> Development, single-user, or seeding a shared-account refresh token for static mode.
 
 ```bash
 git clone https://github.com/patrickking67/clio-mcp.git
@@ -307,10 +406,17 @@ cp .env.example .env
 # fill: CLIO_CLIENT_ID, CLIO_CLIENT_SECRET, CLIO_ENCRYPTION_KEY (openssl rand -hex 32)
 ```
 
-Wire into Claude Desktop / Claude Code with one of the
-[examples/](examples/), then `authenticate with Clio` in a conversation.
-The encrypted token blob lives at `~/.clio-mcp/tokens.enc` and auto-refreshes
-ahead of expiry. Full guide: [docs/deployment-local.md](docs/deployment-local.md).
+Register `http://127.0.0.1:5678/callback` as a Redirect URI on your Clio
+Developer Application (Clio allows several, so the same app can serve both local
+stdio and the remote connector). Then wire the server into Claude Desktop /
+Claude Code with one of the [examples/](examples/), and run `authenticate with
+Clio` in a conversation. The encrypted token blob lives at
+`~/.clio-mcp/tokens.enc` and auto-refreshes ahead of expiry. Full guide:
+[docs/deployment-local.md](docs/deployment-local.md).
+
+> You can also run the HTTP transport locally in `hybrid` mode for connector
+> development by setting `PUBLIC_BASE_URL=http://localhost:8765` — see
+> [docs/deployment-local.md](docs/deployment-local.md).
 
 ---
 
@@ -332,6 +438,10 @@ ahead of expiry. Full guide: [docs/deployment-local.md](docs/deployment-local.md
 | Workflows       | `clio_open_new_matter` (client + matter + flat-fee + note + task in one call)           |
 | Escape hatch    | `clio_api_request` (raw v4 endpoint with `{ data: ... }` wrapping)                      |
 
+In OAuth mode the auth tools (`clio_authenticate`, `clio_logout`) are not used —
+sign-in happens through Claude's connector flow, not from inside a conversation.
+`clio_auth_status` / `clio_who_am_i` still report the current session.
+
 Destructive operations (`clio_delete_*`, `DELETE` via `clio_api_request`) are
 disabled unless `CLIO_ALLOW_DESTRUCTIVE=true`.
 
@@ -351,26 +461,40 @@ session start:
 
 ## Configuration
 
-| Variable                      | Required | Default          | Purpose                                                                |
-|-------------------------------|----------|------------------|------------------------------------------------------------------------|
-| `CLIO_CLIENT_ID`              | yes      | —                | From your Clio Developer Application                                   |
-| `CLIO_CLIENT_SECRET`          | yes      | —                | From your Clio Developer Application                                   |
-| `CLIO_ENCRYPTION_KEY`         | yes      | —                | 64-hex (32 bytes). `openssl rand -hex 32`                              |
-| `CLIO_REGION`                 | no       | `us`             | `us` / `ca` / `eu` / `au`                                              |
-| `CLIO_TRANSPORT`              | no       | `stdio`          | `stdio` or `http`. CLI flags `--stdio` / `--http` override              |
-| `CLIO_HTTP_PORT`              | no       | `8765`           | HTTP transport port                                                    |
-| `CLIO_HTTP_HOST`              | no       | `0.0.0.0`        | HTTP transport bind                                                    |
-| `CLIO_HTTP_AUTH_TOKENS`       | no       | (open!)          | Comma-separated bearer tokens. **Required in production.**             |
-| `CLIO_BOOTSTRAP_REFRESH_TOKEN`| no       | —                | One-shot refresh token used on first boot if no encrypted blob exists  |
-| `CLIO_REDIRECT_PORT`          | no       | `5678`           | Loopback port for OAuth callback                                       |
-| `CLIO_REDIRECT_HOST`          | no       | `127.0.0.1`      | Loopback host for OAuth callback                                       |
-| `CLIO_STATE_DIR`              | no       | `~/.clio-mcp/`   | Where the encrypted token blob and audit log live                      |
-| `CLIO_AUDIT_MODE`             | no       | `metadata`       | `none` / `metadata` / `full`                                           |
-| `CLIO_ALLOW_DESTRUCTIVE`      | no       | `false`          | Enables DELETE endpoints                                                |
-| `CLIO_DEFAULT_PAGE_SIZE`      | no       | `25`             | Records per Clio API page                                              |
-| `CLIO_MAX_PAGE_SIZE`          | no       | `200`            | Hard cap on total records returned by a list tool                      |
-| `CLIO_DEFAULT_USER_ID`        | no       | —                | Default attorney/user id for matter creation                           |
-| `LOG_LEVEL`                   | no       | `info`           | `error` / `warn` / `info` / `debug`                                    |
+Variables and which mode they apply to. In an Azure deployment the OAuth-mode
+variables (`MCP_AUTH_MODE`, `PUBLIC_BASE_URL`, transport, ports, state dir) are
+set by the Bicep template; you only manage the Key Vault secrets.
+
+| Variable                      | Applies to        | Required        | Default        | Purpose                                                                |
+|-------------------------------|-------------------|-----------------|----------------|------------------------------------------------------------------------|
+| `CLIO_CLIENT_ID`              | all               | yes             | —              | From your Clio Developer Application                                   |
+| `CLIO_CLIENT_SECRET`          | all               | yes             | —              | From your Clio Developer Application                                   |
+| `CLIO_ENCRYPTION_KEY`         | all               | yes             | —              | 64-hex (32 bytes). `openssl rand -hex 32`                              |
+| `CLIO_REGION`                 | all               | no              | `us`           | `us` / `ca` / `eu` / `au`                                              |
+| `MCP_AUTH_MODE`               | http              | no              | `hybrid`†      | `oauth` / `static` / `hybrid`. Azure infra default is `oauth`          |
+| `PUBLIC_BASE_URL`             | http (oauth/hybrid) | yes in oauth/hybrid | —        | Public HTTPS base URL of this server. Auto-set by Azure Bicep         |
+| `MCP_SESSION_TTL_SECONDS`     | http (oauth/hybrid) | no            | `2592000`      | Lifetime of an issued MCP session (30 days). Clio tokens auto-refresh  |
+| `CLIO_OAUTH_SCOPES`           | http (oauth/hybrid) | no            | (Clio default) | Space-separated Clio scopes appended to the authorize URL              |
+| `CLIO_HTTP_AUTH_TOKENS`       | http (static/hybrid) | static: yes  | —              | Comma-separated shared bearer tokens accepted on `/mcp`               |
+| `CLIO_BOOTSTRAP_REFRESH_TOKEN`| http (static/hybrid) | no            | —              | Seeds the single shared Clio account on first boot                     |
+| `CLIO_TRANSPORT`              | all               | no              | `stdio`        | `stdio` or `http`. CLI flags `--stdio` / `--http` override             |
+| `CLIO_HTTP_PORT`              | http              | no              | `8765`         | HTTP transport port                                                    |
+| `CLIO_HTTP_HOST`              | http              | no              | `0.0.0.0`      | HTTP transport bind                                                    |
+| `CLIO_REDIRECT_PORT`          | stdio             | no              | `5678`         | Loopback port for the local OAuth callback                             |
+| `CLIO_REDIRECT_HOST`          | stdio             | no              | `127.0.0.1`    | Loopback host for the local OAuth callback                             |
+| `CLIO_STATE_DIR`              | all               | no              | `~/.clio-mcp/` | Holds `tokens.enc`, `sessions/`, audit log. On Azure: the Files mount  |
+| `CLIO_AUDIT_MODE`             | all               | no              | `metadata`     | `none` / `metadata` / `full`                                          |
+| `CLIO_ALLOW_DESTRUCTIVE`      | all               | no              | `false`        | Enables DELETE endpoints                                               |
+| `CLIO_DEFAULT_PAGE_SIZE`      | all               | no              | `25`           | Records per Clio API page                                              |
+| `CLIO_MAX_PAGE_SIZE`          | all               | no              | `200`          | Hard cap on total records returned by a list tool                     |
+| `CLIO_DEFAULT_USER_ID`        | all               | no              | —              | Default attorney/user id for matter creation                          |
+| `LOG_LEVEL`                   | all               | no              | `info`         | `error` / `warn` / `info` / `debug`                                  |
+
+† The server's own default is `hybrid`; the Azure Bicep deploys `oauth`.
+
+In `oauth` mode the required secrets are just `CLIO_CLIENT_ID`,
+`CLIO_CLIENT_SECRET`, and `CLIO_ENCRYPTION_KEY`. `CLIO_HTTP_AUTH_TOKENS` and
+`CLIO_BOOTSTRAP_REFRESH_TOKEN` are only consulted in `static`/`hybrid` mode.
 
 ---
 
@@ -380,27 +504,34 @@ session start:
 
 | Layer                       | What this server does                                                | What you should still do                                              |
 |-----------------------------|----------------------------------------------------------------------|------------------------------------------------------------------------|
-| OAuth                       | Authorization-code with CSRF state; no password is ever seen by us  | Use a single Clio Developer Application per deployment                |
-| Token storage               | AES-256-GCM at rest; key in Key Vault (Azure) or env (local)        | Rotate `clio-encryption-key` on offboarding                            |
-| HTTP transport              | Bearer-token required; `timingSafeEqual` on SHA-256 digests          | Rotate `clio-http-auth-tokens` per caller / per departure              |
+| OAuth (per-user)            | OAuth 2.1 + PKCE bridge; each user signs in on Clio's own domain      | Use a single Clio Developer Application per deployment                |
+| Token storage               | AES-256-GCM at rest, per session; key in Key Vault (Azure) or env    | Rotate `clio-encryption-key` on offboarding                            |
+| `/mcp` auth                 | OAuth session token (oauth) or shared bearer (static), constant-time  | In static mode, rotate `clio-http-auth-tokens` per caller / departure  |
 | Audit                       | Append-only JSONL of every tool call (metadata or redacted args)     | Export + retain per firm policy; the server does not rotate            |
 | Destructive operations      | Off by default (`CLIO_ALLOW_DESTRUCTIVE=false`)                      | Keep off unless you have a specific reason                             |
 | Telemetry                   | None. Only outbound call is to your configured Clio region's API     | Pair with Claude Enterprise / API+ZDR for conversation-side controls   |
 
 **Detail**
 
-- OAuth 2.0 with a cryptographically random `state` parameter for CSRF
-  protection. The user logs in directly on Clio's domain.
+- **Per-user OAuth 2.1.** In OAuth mode the server is an OAuth Authorization
+  Server + Protected Resource. Claude discovers it, registers via Dynamic Client
+  Registration, and runs PKCE. The user logs in directly on Clio's domain; the
+  server never sees a Clio password. Each user's Clio tokens are bridged into an
+  isolated, encrypted MCP session.
 - The encryption key never leaves the host. Tampered ciphertext fails
   decryption — `AES-256-GCM` is authenticated encryption, so partial /
   tampered token blobs cannot be silently used.
 - The audit log captures: ISO timestamp, tool name, outcome, duration in ms,
   Clio user id, matter id (when applicable), result count, transport
-  identifier. In `full` mode it also records argument payloads with
-  redaction of known-secret keys.
+  identifier, and a per-caller fingerprint. In `full` mode it also records
+  argument payloads with redaction of known-secret keys.
 - The HTTP transport is **stateless POST-only** on `/mcp`. `GET` and `DELETE`
-  return 405. The bearer-token check uses constant-time comparison to avoid
-  timing side channels.
+  return 405. An unauthenticated `/mcp` request returns 401 with an RFC 9728
+  `WWW-Authenticate` challenge pointing at the protected-resource metadata. The
+  static-token check uses constant-time comparison to avoid timing side channels.
+- **Multi-replica safe.** Sessions, registered clients, and pending authorizations
+  live as encrypted records on the shared `/state` mount, so any replica can
+  serve any request given the same encryption key.
 
 Threat model + Azure-specific notes: [docs/security.md](docs/security.md).
 
@@ -423,18 +554,31 @@ calls/day) running one warm replica:
 | **Total**                  | **~$25–30/mo**  |
 
 Setting `minReplicas=0` (scale-to-zero) trades a 3–5s cold start on the
-first request after idle for ~80% lower Container App spend.
+first request after idle for ~80% lower Container App spend. For a per-user
+OAuth connector that attorneys hit throughout the day, one warm replica is the
+usual choice.
 
 ---
 
 ## FAQ
 
+**How do attorneys connect?**
+In OAuth mode (the Azure default), each attorney goes to **Settings → Connectors
+→ Add custom connector** in Claude, pastes `${PUBLIC_BASE_URL}/mcp`, and signs in
+to **their own** Clio account when redirected. No token to copy. See
+[How connecting works](#how-connecting-works).
+
+**Does everyone share one Clio login?**
+Not in OAuth mode — each user authorizes their own Clio account and only sees
+their own data. The shared-login model exists only in `static` mode, for
+single-tenant setups that opt into it.
+
 **Is this safe for client matter data?**
-It's built for it. OAuth tokens are encrypted at rest, every tool call is
-audited, no data is cached or mirrored, and no outbound calls happen besides
-Clio. But this server only secures the Clio-to-AI boundary — pair it with
-**Claude Enterprise** or the **Claude API with Zero Data Retention** so
-that the conversations themselves get the right handling.
+It's built for it. Clio tokens are encrypted at rest per session, every tool
+call is audited, no data is cached or mirrored, and no outbound calls happen
+besides Clio. But this server only secures the Clio-to-AI boundary — pair it with
+**Claude Enterprise** or the **Claude API with Zero Data Retention** so the
+conversations themselves get the right handling.
 
 **Does Claude train on what we send through this?**
 It depends entirely on the Claude tier you pair this with. Claude Pro/Max
@@ -448,24 +592,26 @@ Yes. Set `CLIO_REGION` to `eu`, `ca`, or `au` and the server routes OAuth +
 API + tokens against the matching regional host. Tokens minted in one region
 will not authenticate in another, by design.
 
-**How do we revoke access?**
-Any of three places. (a) Local: call `clio_logout` to wipe the encrypted
-token blob. (b) Azure: delete the `clio-refresh-token` Key Vault secret and
-restart the revision. (c) Clio side: revoke the Developer Application in
-*Settings → Developer Applications*. The third is the only one Clio sees
-explicitly.
+**How do we revoke a user's access?**
+OAuth mode: revoke the connector from the user's side in Claude, or call
+`/revoke`; the firm can also revoke the Developer Application in Clio
+(*Settings → Developer Applications*), which invalidates everyone. Static mode:
+remove the bearer token from `clio-http-auth-tokens` and restart, or delete the
+`clio-refresh-token` secret.
 
 **Do we have to use Azure?**
 No. Local stdio works completely standalone. Azure Container Apps is the
-primary production path because it's the cleanest match for a stateless
-MCP gateway (HTTPS ingress, managed identity, file mount, scale-to-zero),
+primary production path because it's the cleanest match for a stateless OAuth
+MCP gateway (HTTPS ingress, managed identity, shared file mount, autoscale),
 but the Docker image runs on EKS, ECS, Fly, Render, or any other container
-host — only the secret-injection wiring needs to change.
+host — set `MCP_AUTH_MODE`, `PUBLIC_BASE_URL`, and the secrets yourself, and
+mount a shared volume at `CLIO_STATE_DIR`.
 
 **Can we use this with hosts besides Claude?**
-Yes. It speaks standard MCP. Verified against Claude Desktop, Claude Code,
-and the MCP Inspector; expected to work with any client that implements
-either stdio or Streamable HTTP transport.
+The OAuth connector targets Claude's custom-connector flow. The underlying
+transport is standard MCP (stdio + Streamable HTTP), verified against Claude
+Desktop, Claude Code, and the MCP Inspector, and expected to work with any
+client implementing those transports.
 
 **What's the trust story for installing this?**
 This isn't on npm. Clone, audit, build from source. No telemetry. The only
@@ -475,14 +621,17 @@ outbound calls go to your configured Clio region's API.
 
 ## Verification
 
-Two protocol-level smoke tests drive a real MCP session against the built
-binary. They assert on tool count, resource publication, auth enforcement,
-and error shape. Both run on every commit ([build.yml](.github/workflows/build.yml)).
+Three protocol-level smoke tests plus a unit-test suite drive a real MCP
+session against the built binary. They assert on tool count, resource
+publication, auth enforcement, the OAuth discovery/registration handshake,
+and error shape. All run on every commit ([build.yml](.github/workflows/build.yml)).
 
 ```bash
 npm run build
 npm run smoke:stdio    # raw JSON-RPC over spawned --stdio child
-npm run smoke:http     # SDK Client over Streamable HTTP against spawned --http child
+npm run smoke:http     # SDK Client over Streamable HTTP against spawned --http child (static mode)
+npm run smoke:oauth    # OAuth discovery: metadata, dynamic client registration, /authorize -> Clio, 401 + WWW-Authenticate
+npm test               # unit tests: encrypted session store + Clio OAuth provider
 ```
 
 A passing stdio run:
@@ -497,7 +646,8 @@ A passing stdio run:
 ALL CHECKS PASSED ✓
 ```
 
-A passing HTTP run:
+A passing HTTP run (the script pins `MCP_AUTH_MODE=static` so it needs no
+public URL):
 
 ```
 ✓ /healthz ready
@@ -538,47 +688,9 @@ the next person doesn't have to re-derive:
 - **DELETE on bills is soft-delete (void).** The bill moves to `void` state
   rather than disappearing.
 - **Region cross-talk fails.** A token minted at `app.clio.com` will not
-  authenticate against `eu.app.clio.com`. Pick one and stick with it.
-
----
-
-## Development
-
-```bash
-npm install
-npm run dev:stdio        # tsx watch, stdio mode
-npm run dev:http         # tsx watch, http mode
-npm run lint             # tsc --noEmit
-npm run build            # tsc + chmod +x
-npm run smoke:stdio      # protocol smoke test (stdio)
-npm run smoke:http       # protocol smoke test (http)
-npm run inspector        # MCP Inspector against the built binary
-```
-
-The MCP Inspector is the fastest way to iterate on tool schemas against a
-real Clio account. Source map and declaration files ship with the build so
-debuggers and IDEs work out of the box.
-
-Project layout:
-
-```
-src/
-├── index.ts              entry point — picks transport from --stdio/--http
-├── config.ts             env loading + region routing
-├── server.ts             McpServer factory
-├── audit.ts              JSONL audit log with secret redaction
-├── resources.ts          clio:// MCP resources
-├── auth/                 OAuth code flow + AES-256-GCM token store
-├── clio/                 HTTP client (auth refresh, retry, pagination)
-├── transports/           stdio + Streamable HTTP
-├── tools/                13 modules, ~41 tools
-└── util/                 stderr logger, error types
-infra/main.bicep          Container Apps + ACR + Key Vault + Files
-Dockerfile                multi-stage build, distroless-style runtime
-scripts/smoke-*.mjs       end-to-end MCP protocol tests
-docs/                     deployment-local, deployment-azure, oauth, security
-examples/                 client configs + bootstrap-refresh-token.mjs
-```
+  authenticate against `eu.app.clio.com`. Pick one and stick with it. The same
+  applies to the OAuth bridge: the redirect and token exchange must both target
+  the configured region.
 
 ---
 
@@ -618,8 +730,8 @@ Full plugin docs: [`plugin/README.md`](plugin/README.md).
 
 ## Optional connectors
 
-Clio is the only required MCP. Other connectors are recommended for specific
-skills but never required:
+The remote Clio connector is the one your firm consumes from Claude. Other
+connectors are recommended for specific skills but never required:
 
 | Tier | Connector | What it adds |
 |---|---|---|
@@ -649,6 +761,48 @@ sections from a single `docs/index.html`.
 
 ---
 
+## Development
+
+```bash
+npm install
+npm run dev:stdio        # tsx watch, stdio mode
+npm run dev:http         # tsx watch, http mode
+npm run lint             # tsc --noEmit
+npm run build            # tsc + chmod +x
+npm run smoke:stdio      # protocol smoke test (stdio)
+npm run smoke:http       # protocol smoke test (http, static mode)
+npm run smoke:oauth      # protocol smoke test (http, OAuth discovery)
+npm test                 # unit tests (session store + OAuth provider)
+npm run inspector        # MCP Inspector against the built binary
+```
+
+The MCP Inspector is the fastest way to iterate on tool schemas against a
+real Clio account. Source map and declaration files ship with the build so
+debuggers and IDEs work out of the box.
+
+Project layout:
+
+```
+src/
+├── index.ts              entry point — picks transport from --stdio/--http
+├── config.ts             env loading + region routing + auth-mode resolution
+├── server.ts             McpServer factory
+├── audit.ts              JSONL audit log with secret redaction
+├── resources.ts          clio:// MCP resources
+├── auth/                 Clio OAuth flow, OAuth AS provider, encrypted session store
+├── clio/                 HTTP client (auth refresh, retry, pagination)
+├── transports/           stdio + Streamable HTTP (OAuth/static/hybrid)
+├── tools/                tool modules, 41 tools
+└── util/                 stderr logger, error types
+infra/main.bicep          Container Apps + ACR + Key Vault + Files (OAuth default)
+Dockerfile                multi-stage build, distroless-style runtime
+scripts/smoke-*.mjs       end-to-end MCP protocol tests
+docs/                     deployment-local, deployment-azure, oauth, security, connectors
+examples/                 client configs + bootstrap-refresh-token.mjs
+```
+
+---
+
 ## Related work
 
 Two prior open-source Clio MCP implementations informed this one, and both
@@ -662,11 +816,13 @@ are worth reading if you're evaluating options:
   `custom_rate` setup, activity field aliases, region routing). Most of the
   quirks section in this README originates from that prior empirical work.
 
-This implementation contributes: **Azure-native deployment** with Bicep + azd,
-**broader tool surface** (41 vs. ~15), **stateless Streamable HTTP transport**
-with bearer-token auth, **end-to-end protocol smoke tests** in CI, and a
-**composite intake workflow** that chains the most common matter-opening
-sequence into one agent action.
+This implementation contributes: a **per-user remote OAuth 2.1 connector** for
+Claude (Authorization Server + Protected Resource bridging to Clio),
+**Azure-native deployment** with Bicep + azd, **broader tool surface** (41 vs.
+~15), **stateless Streamable HTTP transport** with encrypted per-session token
+storage, **end-to-end protocol smoke tests** in CI, and a **composite intake
+workflow** that chains the most common matter-opening sequence into one agent
+action.
 
 ---
 
@@ -674,12 +830,10 @@ sequence into one agent action.
 
 - OS-keychain integration for the encryption key (macOS Keychain, Linux
   secret-service, Windows Credential Manager) so the key isn't on disk.
-- Multi-tenant HTTP mode: one MCP endpoint, many firms, per-caller bearer
-  token → per-firm OAuth state.
 - Private Endpoint + Front Door / API Management options in Bicep.
 - DXT packaging for one-click Claude Desktop install.
 - Webhook subscription tool for live matter / task / bill events.
-- Per-tool scope minimization (today the OAuth dance asks the broad set).
+- Per-tool scope minimization (today the OAuth grant asks the broad set).
 
 ---
 
