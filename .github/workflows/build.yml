@@ -25,6 +25,8 @@ jobs:
         run: npm run smoke:stdio
       - name: Protocol smoke test (http)
         run: npm run smoke:http
+      - name: Protocol smoke test (oauth discovery)
+        run: npm run smoke:oauth
 
   docker:
     runs-on: ubuntu-latest
