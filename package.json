@@ -26,6 +26,7 @@
     "test": "node --test --import tsx 'src/**/*.test.ts'",
     "smoke:stdio": "node scripts/smoke-stdio.mjs",
     "smoke:http": "node scripts/smoke-http.mjs",
+    "smoke:oauth": "node scripts/smoke-oauth.mjs",
     "inspector": "npx -y @modelcontextprotocol/inspector node build/index.js",
     "clean": "rimraf build"
   },
