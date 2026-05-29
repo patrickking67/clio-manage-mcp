@@ -183,10 +183,11 @@ export class ClioOAuthProvider implements OAuthServerProvider {
   /**
    * Verify a presented MCP access token and return its auth info.
    *
-   * If the session's Clio access token is near expiry we proactively refresh it
-   * and persist the rotated Clio tokens, so the per-request ClioClient built
-   * from `req.auth` is always usable. `expiresAt` is returned in SECONDS (the
-   * SDK's bearer middleware compares against `Date.now() / 1000`).
+   * This only resolves the MCP session. The user's Clio access token is
+   * refreshed lazily by the session-bound ClioClient on its next Clio call (and
+   * persisted back into the session record via SessionTokenProvider), so nothing
+   * Clio-side happens here. `expiresAt` is returned in SECONDS — the SDK's bearer
+   * middleware compares it against `Date.now() / 1000`.
    */
   async verifyAccessToken(token: string): Promise<AuthInfo> {
     const session = await this.sessions.getSessionByAccessToken(token);
