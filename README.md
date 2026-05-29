@@ -20,8 +20,6 @@
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 ![Bicep](https://img.shields.io/badge/Bicep-519aba?style=for-the-badge&logoColor=white)
 ![Express](https://img.shields.io/badge/Express-000000?style=for-the-badge&logo=express&logoColor=white)
-![Anthropic](https://img.shields.io/badge/Anthropic-191919?style=for-the-badge&logo=anthropic&logoColor=white)
-![Claude](https://img.shields.io/badge/Claude-D97757?style=for-the-badge&logo=anthropic&logoColor=white)
 ![Clio](https://img.shields.io/badge/Clio_Manage_v4-2D3B4D?style=for-the-badge)
 ![OAuth 2.0](https://img.shields.io/badge/OAuth_2.0-EB5424?style=for-the-badge&logo=oauth&logoColor=white)
 ![AES-256-GCM](https://img.shields.io/badge/AES--256--GCM-1a7f37?style=for-the-badge&logo=keepassxc&logoColor=white)
