@@ -3,29 +3,34 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Clio Manage MCP — bring Clio into Claude</title>
+    <title>Clio Manage MCP — Clio Manage, inside Claude</title>
     <meta
       name="description"
-      content="A Model Context Protocol server and Claude Code plugin for Clio Manage. Matters, contacts, time, billing, calendar, and documents — one prompt away. Runs on Azure or locally over stdio."
+      content="An open-source Model Context Protocol server that connects Clio Manage to Claude. Add it as a remote custom connector, sign in to your own Clio account over OAuth, and run your practice in plain English — matters, contacts, time, billing, calendar, and documents across 40+ tools."
     />
-    <meta property="og:title" content="Clio Manage MCP" />
-    <meta property="og:description" content="Bring Clio Manage into Claude. MCP + plugin + 10 skills + 2 agents." />
+    <meta property="og:title" content="Clio Manage MCP — Clio Manage, inside Claude" />
+    <meta property="og:description" content="A remote, OAuth-secured MCP server that brings Clio Manage into Claude. Deploy to Azure, add a custom connector, sign in to your own Clio. 40+ tools across 11 domains. MIT licensed." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://patrickking67.github.io/clio-manage-mcp/" />
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#09090b" />
 
-    <link rel="icon" type="image/svg+xml" href="../plugin/.claude-plugin/icon.svg" />
+    <link rel="icon" type="image/svg+xml" href="assets/icon.svg" />
+    <link rel="apple-touch-icon" href="assets/icon.svg" />
 
     <!-- Theme bootstrap — runs before paint to avoid flash -->
     <script>
       (() => {
-        const stored = localStorage.getItem('theme');
-        const mode = stored || 'system';
-        const sys = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        const dark = mode === 'dark' || (mode === 'system' && sys);
-        if (dark) document.documentElement.classList.add('dark');
-        document.documentElement.dataset.theme = mode;
+        try {
+          const stored = localStorage.getItem('theme');
+          const mode = stored || 'system';
+          const sys = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          const dark = mode === 'dark' || (mode === 'system' && sys);
+          if (dark) document.documentElement.classList.add('dark');
+          document.documentElement.dataset.theme = mode;
+        } catch (e) {
+          document.documentElement.dataset.theme = 'system';
+        }
       })();
     </script>
 
@@ -93,6 +98,7 @@
         --border-soft:  244 244 245;
         --code-bg:      244 244 245;
         --accent:       25 118 210;
+        --accent-strong:21 101 192;
         --accent-bg:    25 118 210;
         --accent-fg:    255 255 255;
         --success:      22 163 74;
@@ -108,69 +114,86 @@
         --border-soft:  31 31 35;
         --code-bg:      24 24 27;
         --accent:       96 165 250;
+        --accent-strong:147 197 253;
         --accent-bg:    37 99 235;
         --accent-fg:    255 255 255;
         --success:      34 197 94;
       }
 
       html { scroll-behavior: smooth; }
+      @media (prefers-reduced-motion: reduce) {
+        html { scroll-behavior: auto; }
+        *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+      }
+      /* keep nav anchors clear of the sticky header */
+      [id] { scroll-margin-top: 5.5rem; }
+
       body {
         background-color: rgb(var(--bg));
         color: rgb(var(--fg));
         font-feature-settings: 'cv11', 'ss01';
         transition: background-color 200ms ease, color 200ms ease;
+        -webkit-font-smoothing: antialiased;
       }
+
+      /* Focus visibility */
+      :focus-visible {
+        outline: 2px solid rgb(var(--accent));
+        outline-offset: 2px;
+        border-radius: 4px;
+      }
+      .theme-opt:focus-visible, .btn:focus-visible { outline-offset: 3px; }
 
       /* Selection */
       ::selection { background: rgb(25 118 210 / 0.18); }
       .dark ::selection { background: rgb(96 165 250 / 0.28); }
 
-      /* Subtle gradient ambient blobs in hero */
+      /* Subtle gradient ambient blobs */
       .blob-1 {
-        background: radial-gradient(50% 50% at 50% 50%, rgb(25 118 210 / 0.10) 0%, transparent 70%);
+        background: radial-gradient(50% 50% at 50% 50%, rgb(25 118 210 / 0.12) 0%, transparent 70%);
       }
       .dark .blob-1 {
-        background: radial-gradient(50% 50% at 50% 50%, rgb(96 165 250 / 0.16) 0%, transparent 70%);
+        background: radial-gradient(50% 50% at 50% 50%, rgb(96 165 250 / 0.18) 0%, transparent 70%);
       }
       .blob-2 {
-        background: radial-gradient(50% 50% at 50% 50%, rgb(244 63 94 / 0.06) 0%, transparent 70%);
+        background: radial-gradient(50% 50% at 50% 50%, rgb(99 102 241 / 0.07) 0%, transparent 70%);
       }
       .dark .blob-2 {
-        background: radial-gradient(50% 50% at 50% 50%, rgb(244 63 94 / 0.12) 0%, transparent 70%);
+        background: radial-gradient(50% 50% at 50% 50%, rgb(129 140 248 / 0.14) 0%, transparent 70%);
       }
 
       /* Grid background */
       .grid-fade {
         background-image:
-          linear-gradient(rgb(var(--fg) / 0.05) 1px, transparent 1px),
-          linear-gradient(90deg, rgb(var(--fg) / 0.05) 1px, transparent 1px);
+          linear-gradient(rgb(var(--fg) / 0.045) 1px, transparent 1px),
+          linear-gradient(90deg, rgb(var(--fg) / 0.045) 1px, transparent 1px);
         background-size: 56px 56px;
-        mask-image: radial-gradient(ellipse at top, black 30%, transparent 70%);
-        -webkit-mask-image: radial-gradient(ellipse at top, black 30%, transparent 70%);
+        mask-image: radial-gradient(ellipse 90% 60% at 50% 0%, black 25%, transparent 75%);
+        -webkit-mask-image: radial-gradient(ellipse 90% 60% at 50% 0%, black 25%, transparent 75%);
       }
 
       /* Buttons */
       .btn {
         display: inline-flex;
         align-items: center;
+        justify-content: center;
         gap: 0.5rem;
-        padding: 0.625rem 1.05rem;
-        font-size: 0.875rem;
+        padding: 0.7rem 1.15rem;
+        font-size: 0.9rem;
         font-weight: 500;
         letter-spacing: -0.01em;
-        border-radius: 0.625rem;
-        transition: transform 150ms cubic-bezier(0.2, 0.7, 0.3, 1), background-color 150ms, border-color 150ms, color 150ms, box-shadow 150ms;
+        border-radius: 0.7rem;
+        transition: transform 150ms cubic-bezier(0.2, 0.7, 0.3, 1), background-color 150ms, border-color 150ms, color 150ms, box-shadow 150ms, filter 150ms;
         white-space: nowrap;
+        cursor: pointer;
       }
       .btn-primary {
         background: rgb(var(--accent-bg));
         color: rgb(var(--accent-fg));
-        box-shadow: 0 1px 0 rgb(0 0 0 / 0.08) inset, 0 8px 24px -8px rgb(25 118 210 / 0.45);
+        box-shadow: 0 1px 0 rgb(255 255 255 / 0.12) inset, 0 10px 26px -10px rgb(25 118 210 / 0.6);
       }
-      .btn-primary:hover {
-        transform: translateY(-1px);
-        filter: brightness(1.05);
-      }
+      .btn-primary:hover { transform: translateY(-1px); filter: brightness(1.06); }
+      .btn-primary:active { transform: translateY(0); }
       .btn-secondary {
         color: rgb(var(--fg));
         background: rgb(var(--bg-elev));
@@ -181,37 +204,44 @@
         background: rgb(var(--bg-soft));
         transform: translateY(-1px);
       }
+      .btn-ghost {
+        color: rgb(var(--fg-muted));
+        background: transparent;
+        border: 1px solid transparent;
+      }
+      .btn-ghost:hover { color: rgb(var(--fg)); background: rgb(var(--bg-soft)); }
+      .btn-sm { padding: 0.5rem 0.85rem; font-size: 0.82rem; border-radius: 0.6rem; }
 
-      /* Subtle card */
+      /* Cards */
       .card {
         background: rgb(var(--bg-elev));
         border: 1px solid rgb(var(--border));
-        border-radius: 0.875rem;
-        transition: border-color 200ms ease, box-shadow 200ms ease, transform 200ms ease;
+        border-radius: 1rem;
+        transition: border-color 200ms ease, box-shadow 200ms ease, transform 200ms ease, background 200ms ease;
       }
       .card-hover:hover {
         border-color: rgb(var(--fg-faint) / 0.6);
-        box-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 12px 32px -10px rgb(0 0 0 / 0.12);
-        transform: translateY(-2px);
+        box-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 16px 40px -14px rgb(0 0 0 / 0.16);
+        transform: translateY(-3px);
       }
       .dark .card-hover:hover {
         border-color: rgb(var(--fg-muted));
-        box-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px -10px rgb(0 0 0 / 0.5);
+        box-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 16px 40px -14px rgb(0 0 0 / 0.6);
       }
 
       /* Code block */
       .code {
         background: rgb(var(--code-bg));
         border: 1px solid rgb(var(--border));
-        border-radius: 0.625rem;
+        border-radius: 0.7rem;
         font-family: 'Geist Mono', ui-monospace, monospace;
-        font-size: 0.78rem;
-        line-height: 1.7;
+        font-size: 0.8rem;
+        line-height: 1.75;
         position: relative;
       }
       .code pre {
         margin: 0;
-        padding: 0.95rem 1.1rem;
+        padding: 1rem 1.15rem;
         overflow-x: auto;
         color: rgb(var(--fg));
       }
@@ -219,35 +249,37 @@
         position: absolute;
         top: 0.5rem;
         right: 0.5rem;
-        padding: 0.3rem 0.55rem;
+        padding: 0.32rem 0.6rem;
         font-size: 0.68rem;
         font-weight: 500;
         color: rgb(var(--fg-muted));
         background: rgb(var(--bg));
         border: 1px solid rgb(var(--border));
-        border-radius: 0.4rem;
+        border-radius: 0.45rem;
         cursor: pointer;
         opacity: 0;
-        transition: opacity 200ms, color 200ms, background 200ms;
+        transition: opacity 200ms, color 200ms, background 200ms, border-color 200ms;
       }
-      .code:hover .copy { opacity: 1; }
+      .code:hover .copy, .code:focus-within .copy { opacity: 1; }
+      .code .copy:focus-visible { opacity: 1; }
       .code .copy:hover { color: rgb(var(--fg)); background: rgb(var(--bg-elev)); }
-      .code .copy.copied { color: rgb(var(--success)); border-color: rgb(var(--success) / 0.4); }
+      .code .copy.copied { color: rgb(var(--success)); border-color: rgb(var(--success) / 0.5); }
       .code .muted { color: rgb(var(--fg-faint)); }
       .code .ok    { color: rgb(var(--success)); }
       .code .warn  { color: rgb(245 158 11); }
       .code .acc   { color: rgb(var(--accent)); }
+      .code .str   { color: rgb(var(--success)); }
 
       /* Eyebrow / pill */
       .pill {
         display: inline-flex;
         align-items: center;
         gap: 0.5rem;
-        padding: 0.3rem 0.75rem;
+        padding: 0.34rem 0.8rem;
         border-radius: 9999px;
-        font-size: 0.72rem;
+        font-size: 0.74rem;
         font-weight: 500;
-        letter-spacing: 0.015em;
+        letter-spacing: 0.01em;
         background: rgb(var(--bg-soft));
         color: rgb(var(--fg-muted));
         border: 1px solid rgb(var(--border));
@@ -260,10 +292,7 @@
       }
 
       /* Animated link underline */
-      .link-u {
-        position: relative;
-        padding-bottom: 1px;
-      }
+      .link-u { position: relative; padding-bottom: 1px; }
       .link-u::after {
         content: '';
         position: absolute;
@@ -274,10 +303,15 @@
         transform: scaleX(0);
         transition: transform 250ms cubic-bezier(0.2, 0.7, 0.2, 1);
       }
-      .link-u:hover::after {
-        transform-origin: left;
-        transform: scaleX(1);
+      .link-u:hover::after, .link-u:focus-visible::after { transform-origin: left; transform: scaleX(1); }
+
+      /* Nav link */
+      .nav-link {
+        position: relative;
+        transition: color 150ms ease;
+        color: rgb(var(--fg-muted));
       }
+      .nav-link:hover { color: rgb(var(--fg)); }
 
       /* Theme toggle */
       .theme-group {
@@ -305,9 +339,7 @@
         color: rgb(var(--fg));
         box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
       }
-      .dark .theme-opt[aria-pressed="true"] {
-        box-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
-      }
+      .dark .theme-opt[aria-pressed="true"] { box-shadow: 0 1px 2px rgb(0 0 0 / 0.4); }
 
       /* Scrollbar */
       ::-webkit-scrollbar { width: 10px; height: 10px; }
@@ -315,7 +347,7 @@
       ::-webkit-scrollbar-thumb { background: rgb(var(--border)); border-radius: 9999px; }
       ::-webkit-scrollbar-thumb:hover { background: rgb(var(--fg-faint)); }
 
-      /* Section heading */
+      /* Section heading eyebrow */
       .section-eyebrow {
         font-family: 'Geist Mono', monospace;
         font-size: 0.72rem;
@@ -324,130 +356,165 @@
         text-transform: uppercase;
         color: rgb(var(--accent));
       }
+      .h-display {
+        font-weight: 600;
+        letter-spacing: -0.025em;
+        line-height: 1.05;
+      }
+      .gradient-text {
+        background: linear-gradient(115deg, rgb(var(--accent)) 0%, rgb(99 102 241) 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      .dark .gradient-text {
+        background: linear-gradient(115deg, rgb(147 197 253) 0%, rgb(129 140 248) 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
 
-      /* Reveal */
-      .reveal { opacity: 0; transform: translateY(12px); transition: opacity 700ms ease, transform 700ms ease; }
+      /* Reveal on scroll */
+      .reveal { opacity: 0; transform: translateY(14px); transition: opacity 700ms cubic-bezier(0.16,1,0.3,1), transform 700ms cubic-bezier(0.16,1,0.3,1); }
       .reveal.in { opacity: 1; transform: translateY(0); }
+      .reveal[data-delay="1"] { transition-delay: 80ms; }
+      .reveal[data-delay="2"] { transition-delay: 160ms; }
+      .reveal[data-delay="3"] { transition-delay: 240ms; }
+      @media (prefers-reduced-motion: reduce) {
+        .reveal { opacity: 1; transform: none; transition: none; }
+        .animate-fade-up { animation: none !important; }
+      }
 
-      /* === Cursor spotlight in hero === */
+      /* Cursor spotlight in hero */
       .spotlight {
         position: absolute;
         inset: 0;
         pointer-events: none;
         opacity: 0;
         transition: opacity 400ms ease;
-        background: radial-gradient(
-          400px circle at var(--mx, 50%) var(--my, 50%),
-          rgb(25 118 210 / 0.10),
-          transparent 50%
-        );
+        background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), rgb(25 118 210 / 0.10), transparent 55%);
       }
       .dark .spotlight {
-        background: radial-gradient(
-          400px circle at var(--mx, 50%) var(--my, 50%),
-          rgb(96 165 250 / 0.14),
-          transparent 50%
-        );
+        background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), rgb(96 165 250 / 0.14), transparent 55%);
       }
       .spotlight.lit { opacity: 1; }
 
-      /* === Cycling terminal === */
-      .term-bar {
-        display: flex; align-items: center; gap: 0.375rem;
-        padding: 0.65rem 1rem;
+      /* Window chrome (chat / terminal mocks) */
+      .win-bar {
+        display: flex; align-items: center; gap: 0.4rem;
+        padding: 0.7rem 1rem;
         border-bottom: 1px solid rgb(var(--border));
       }
-      .term-dot { width: 0.625rem; height: 0.625rem; border-radius: 9999px; }
-      .term-tabs {
-        margin-left: 0.75rem;
-        display: flex; gap: 0.375rem;
+      .win-dot { width: 0.6rem; height: 0.6rem; border-radius: 9999px; }
+
+      /* Chat mock */
+      .chat-bubble-user {
+        background: rgb(var(--accent-bg));
+        color: rgb(var(--accent-fg));
+        border-radius: 1rem 1rem 0.25rem 1rem;
       }
+      .chat-bubble-ai {
+        background: rgb(var(--bg-soft));
+        border: 1px solid rgb(var(--border));
+        border-radius: 1rem 1rem 1rem 0.25rem;
+      }
+
+      /* Cycling terminal */
+      .term-tabs { display: flex; gap: 0.375rem; }
       .term-tab {
-        height: 0.35rem;
-        width: 1.1rem;
-        border-radius: 9999px;
+        height: 0.35rem; width: 1.1rem; border-radius: 9999px;
         background: rgb(var(--border));
         transition: background 250ms ease, width 250ms ease;
+        cursor: pointer; border: 0; padding: 0;
       }
       .term-tab.is-active { background: rgb(var(--accent)); width: 1.6rem; }
-
       .term-prompt {
         font-family: 'Geist Mono', monospace;
         font-size: 0.92rem;
         line-height: 1.65;
         color: rgb(var(--fg));
-        min-height: 9rem;
+        min-height: 7.5rem;
         white-space: pre-wrap;
       }
       .term-prompt .marker { color: rgb(var(--accent)); margin-right: 0.4rem; }
       .term-prompt .accent { color: rgb(var(--accent)); font-weight: 500; }
       .term-prompt .caret {
-        display: inline-block;
-        width: 0.55rem;
-        height: 1.05em;
-        margin-left: 1px;
-        vertical-align: text-bottom;
-        background: rgb(var(--accent));
+        display: inline-block; width: 0.55rem; height: 1.05em; margin-left: 1px;
+        vertical-align: text-bottom; background: rgb(var(--accent));
         animation: blink 1s steps(2,end) infinite;
       }
       @keyframes blink { 50% { opacity: 0; } }
-
       .term-out {
         font-family: 'Geist Mono', monospace;
-        font-size: 0.82rem;
-        line-height: 1.95;
-        color: rgb(var(--fg-muted));
-        min-height: 9rem;
+        font-size: 0.82rem; line-height: 1.95;
+        color: rgb(var(--fg-muted)); min-height: 7.5rem;
       }
       .term-row {
         display: flex; gap: 0.5rem; align-items: baseline;
-        opacity: 0;
-        transform: translateY(4px);
+        opacity: 0; transform: translateY(4px);
         transition: opacity 300ms ease, transform 300ms ease;
       }
       .term-row.in { opacity: 1; transform: translateY(0); }
-      .term-row .check {
-        color: rgb(var(--success));
-        font-weight: 600;
-      }
+      .term-row .check { color: rgb(var(--success)); font-weight: 600; }
       .term-row .meta { color: rgb(var(--fg-faint)); }
       .term-result {
-        margin-top: 0.75rem;
-        padding-top: 0.75rem;
+        margin-top: 0.75rem; padding-top: 0.75rem;
         border-top: 1px solid rgb(var(--border));
-        color: rgb(var(--accent));
-        opacity: 0;
+        color: rgb(var(--accent)); opacity: 0;
         transition: opacity 400ms ease;
       }
       .term-result.in { opacity: 1; }
 
-      /* === Animated counter === */
+      /* Animated counter caret */
       .counter[data-running="true"]::after {
         content: '';
         display: inline-block;
-        width: 0.32em;
-        height: 1.02em;
-        margin-left: 0.1em;
+        width: 0.32em; height: 1.02em; margin-left: 0.1em;
         vertical-align: text-bottom;
-        background: rgb(var(--fg-faint));
-        opacity: 0.4;
+        background: rgb(var(--fg-faint)); opacity: 0.4;
         animation: blink 1s steps(2,end) infinite;
       }
 
-      /* === Tool search === */
-      .tool-search {
-        position: relative;
+      /* Step connector line */
+      .step-num {
+        display: grid; place-items: center;
+        width: 2.5rem; height: 2.5rem; border-radius: 9999px;
+        font-family: 'Geist Mono', monospace; font-weight: 600; font-size: 0.95rem;
+        color: rgb(var(--accent-fg));
+        background: rgb(var(--accent-bg));
+        box-shadow: 0 8px 20px -8px rgb(25 118 210 / 0.6);
       }
+
+      /* Tabs (deploy) */
+      .tab-btn {
+        padding: 0.55rem 1rem;
+        font-size: 0.875rem; font-weight: 500;
+        border-radius: 0.6rem;
+        color: rgb(var(--fg-muted));
+        cursor: pointer;
+        transition: background 150ms, color 150ms;
+        display: inline-flex; align-items: center; gap: 0.5rem;
+      }
+      .tab-btn:hover { color: rgb(var(--fg)); }
+      .tab-btn[aria-selected="true"] {
+        background: rgb(var(--bg-elev));
+        color: rgb(var(--fg));
+        box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+      }
+      .dark .tab-btn[aria-selected="true"] { box-shadow: 0 1px 2px rgb(0 0 0 / 0.4); }
+      .tab-panel[hidden] { display: none; }
+
+      /* Tool search */
+      .tool-search { position: relative; }
       .tool-search input {
         width: 100%;
-        padding: 0.65rem 0.95rem 0.65rem 2.5rem;
-        font-size: 0.9rem;
-        font-family: inherit;
+        padding: 0.7rem 0.95rem 0.7rem 2.5rem;
+        font-size: 0.9rem; font-family: inherit;
         color: rgb(var(--fg));
         background: rgb(var(--bg-elev));
         border: 1px solid rgb(var(--border));
-        border-radius: 0.625rem;
-        transition: border-color 200ms ease, box-shadow 200ms ease, background 200ms ease;
+        border-radius: 0.7rem;
+        transition: border-color 200ms ease, box-shadow 200ms ease;
       }
       .tool-search input:focus {
         outline: none;
@@ -455,81 +522,65 @@
         box-shadow: 0 0 0 3px rgb(var(--accent) / 0.15);
       }
       .tool-search input::placeholder { color: rgb(var(--fg-faint)); }
-      .tool-search svg {
-        position: absolute;
-        left: 0.85rem; top: 50%; transform: translateY(-50%);
-        color: rgb(var(--fg-faint));
-        pointer-events: none;
+      .tool-search > svg {
+        position: absolute; left: 0.85rem; top: 50%; transform: translateY(-50%);
+        color: rgb(var(--fg-faint)); pointer-events: none;
       }
       .tool-search .clear {
-        position: absolute;
-        right: 0.5rem; top: 50%; transform: translateY(-50%);
-        padding: 0.25rem 0.5rem;
-        font-size: 0.7rem;
-        color: rgb(var(--fg-faint));
-        background: transparent;
-        border: 0;
-        cursor: pointer;
-        opacity: 0;
-        transition: opacity 200ms ease, color 200ms;
+        position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%);
+        padding: 0.25rem 0.5rem; font-size: 0.7rem;
+        color: rgb(var(--fg-faint)); background: transparent; border: 0;
+        cursor: pointer; opacity: 0; transition: opacity 200ms ease, color 200ms;
       }
       .tool-search.has-value .clear { opacity: 1; }
       .tool-search .clear:hover { color: rgb(var(--fg)); }
       [data-tool] mark {
-        background: rgb(var(--accent) / 0.18);
-        color: inherit;
-        border-radius: 2px;
-        padding: 0 1px;
+        background: rgb(var(--accent) / 0.18); color: inherit;
+        border-radius: 2px; padding: 0 1px;
       }
       [data-tool].hide { display: none; }
       .tool-empty {
-        display: none;
-        padding: 3rem 0;
-        text-align: center;
-        color: rgb(var(--fg-muted));
-        font-size: 0.9rem;
+        display: none; padding: 3rem 0; text-align: center;
+        color: rgb(var(--fg-muted)); font-size: 0.9rem;
       }
       .tool-empty.show { display: block; }
 
-      /* === Magnetic/tilt cards === */
-      .tilt {
-        will-change: transform;
-        transition: transform 300ms cubic-bezier(0.2, 0.7, 0.3, 1);
-        transform-style: preserve-3d;
-      }
-      .tilt:hover {
-        transition: transform 80ms ease-out;
-      }
+      /* Tilt cards */
+      .tilt { will-change: transform; transition: transform 300ms cubic-bezier(0.2, 0.7, 0.3, 1); transform-style: preserve-3d; }
+      .tilt:hover { transition: transform 80ms ease-out; }
 
-      /* === View Transitions theme toggle === */
+      /* Marquee of domains */
+      .marquee { overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, black 8%, black 92%, transparent); mask-image: linear-gradient(90deg, transparent, black 8%, black 92%, transparent); }
+      .marquee-track { display: flex; gap: 0.6rem; width: max-content; animation: marquee 38s linear infinite; }
+      .marquee:hover .marquee-track { animation-play-state: paused; }
+      @keyframes marquee { to { transform: translateX(-50%); } }
+      @media (prefers-reduced-motion: reduce) { .marquee-track { animation: none; } }
+
+      /* View Transitions theme toggle */
       @supports (view-transition-name: root) {
         ::view-transition-old(root),
-        ::view-transition-new(root) {
-          animation: none;
-          mix-blend-mode: normal;
-        }
-        ::view-transition-old(root) {
-          z-index: 1;
-        }
-        ::view-transition-new(root) {
-          z-index: 2;
-          animation: theme-reveal 500ms cubic-bezier(0.2, 0.7, 0.2, 1);
-        }
+        ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+        ::view-transition-old(root) { z-index: 1; }
+        ::view-transition-new(root) { z-index: 2; animation: theme-reveal 500ms cubic-bezier(0.2, 0.7, 0.2, 1); }
         @keyframes theme-reveal {
           from { clip-path: circle(0% at var(--tx, 100%) var(--ty, 0%)); }
           to   { clip-path: circle(150% at var(--tx, 100%) var(--ty, 0%)); }
         }
       }
+
+      /* Mobile menu */
+      #mobileMenu { transition: opacity 200ms ease; }
+      #mobileMenu[hidden] { display: none; }
     </style>
   </head>
 
   <body class="font-sans antialiased min-h-screen">
-    <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-3 focus:py-2 focus:bg-zinc-900 focus:text-white focus:rounded-md">Skip to content</a>
+    <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[60] focus:px-3 focus:py-2 focus:bg-zinc-900 focus:text-white focus:rounded-md">Skip to content</a>
 
     <!-- =============== Header =============== -->
-    <header class="sticky top-0 z-40 backdrop-blur-md" style="background: rgb(var(--bg) / 0.75); border-bottom: 1px solid rgb(var(--border));">
+    <header class="sticky top-0 z-50 backdrop-blur-md" style="background: rgb(var(--bg) / 0.78); border-bottom: 1px solid rgb(var(--border));">
       <div class="max-w-6xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between gap-4">
-        <a href="#" class="flex items-center gap-2.5 group">
+        <a href="#main" class="flex items-center gap-2.5 group shrink-0" aria-label="Clio Manage MCP — home">
           <span class="block w-8 h-8 rounded-lg overflow-hidden shadow-sm">
             <svg viewBox="0 0 100 100" class="block w-full h-full" aria-hidden="true">
               <rect width="100" height="100" rx="22" fill="#1976D2"/>
@@ -547,34 +598,52 @@
           </div>
         </a>
 
-        <nav class="hidden md:flex items-center gap-7 text-sm" style="color: rgb(var(--fg-muted));">
-          <a href="#features"   class="hover:text-current transition" style="--tw-text-opacity:1;">Features</a>
-          <a href="#install"    class="hover:text-current transition">Install</a>
-          <a href="#connector"  class="hover:text-current transition">Connector</a>
-          <a href="#skills"     class="hover:text-current transition">Skills</a>
-          <a href="#tools"      class="hover:text-current transition">Tools</a>
-          <a href="#faq"        class="hover:text-current transition">FAQ</a>
+        <nav class="hidden md:flex items-center gap-7 text-sm" aria-label="Primary">
+          <a href="#connect"  class="nav-link">Connect</a>
+          <a href="#features" class="nav-link">Features</a>
+          <a href="#tools"    class="nav-link">Tools</a>
+          <a href="#deploy"   class="nav-link">Deploy</a>
+          <a href="#security" class="nav-link">Security</a>
+          <a href="#docs"     class="nav-link">Docs</a>
         </nav>
 
-        <div class="flex items-center gap-2.5">
+        <div class="flex items-center gap-2">
           <!-- Theme toggle -->
           <div role="radiogroup" aria-label="Color theme" class="theme-group">
-            <button type="button" data-theme="light" aria-label="Light theme" class="theme-opt">
+            <button type="button" data-theme="light" role="radio" aria-checked="false" aria-label="Light theme" class="theme-opt">
               <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
             </button>
-            <button type="button" data-theme="system" aria-label="System theme" class="theme-opt">
+            <button type="button" data-theme="system" role="radio" aria-checked="false" aria-label="System theme" class="theme-opt">
               <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M9 21h6M12 17v4"/></svg>
             </button>
-            <button type="button" data-theme="dark" aria-label="Dark theme" class="theme-opt">
+            <button type="button" data-theme="dark" role="radio" aria-checked="false" aria-label="Dark theme" class="theme-opt">
               <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>
             </button>
           </div>
 
-          <a href="https://github.com/patrickking67/clio-manage-mcp" class="btn btn-secondary hidden sm:inline-flex" aria-label="View source on GitHub">
+          <a href="https://github.com/patrickking67/clio-manage-mcp" class="btn btn-secondary btn-sm hidden sm:inline-flex" aria-label="View source on GitHub" rel="noopener">
             <svg viewBox="0 0 24 24" class="w-4 h-4 fill-current" aria-hidden="true"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.55v-2.03c-3.2.7-3.87-1.36-3.87-1.36-.52-1.33-1.27-1.68-1.27-1.68-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.75 2.67 1.25 3.32.96.1-.74.4-1.25.72-1.54-2.55-.29-5.24-1.28-5.24-5.7 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.46.11-3.04 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.78 0c2.2-1.49 3.16-1.18 3.16-1.18.63 1.58.24 2.75.12 3.04.74.81 1.18 1.84 1.18 3.1 0 4.44-2.7 5.41-5.26 5.69.41.35.78 1.04.78 2.1v3.11c0 .3.21.66.8.55C20.21 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5z"/></svg>
             <span class="hidden lg:inline">GitHub</span>
           </a>
+
+          <!-- Mobile menu toggle -->
+          <button type="button" id="menuBtn" class="md:hidden btn btn-ghost btn-sm px-2.5" aria-expanded="false" aria-controls="mobileMenu" aria-label="Open menu">
+            <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+          </button>
         </div>
+      </div>
+
+      <!-- Mobile menu -->
+      <div id="mobileMenu" hidden class="md:hidden border-t" style="border-color: rgb(var(--border)); background: rgb(var(--bg));">
+        <nav class="max-w-6xl mx-auto px-5 py-3 flex flex-col" aria-label="Mobile">
+          <a href="#connect"  class="py-2.5 text-sm nav-link" data-mclose>Connect</a>
+          <a href="#features" class="py-2.5 text-sm nav-link" data-mclose>Features</a>
+          <a href="#tools"    class="py-2.5 text-sm nav-link" data-mclose>Tools</a>
+          <a href="#deploy"   class="py-2.5 text-sm nav-link" data-mclose>Deploy</a>
+          <a href="#security" class="py-2.5 text-sm nav-link" data-mclose>Security</a>
+          <a href="#docs"     class="py-2.5 text-sm nav-link" data-mclose>Docs</a>
+          <a href="https://github.com/patrickking67/clio-manage-mcp" class="py-2.5 text-sm nav-link" rel="noopener">GitHub repository &rarr;</a>
+        </nav>
       </div>
     </header>
 
@@ -582,432 +651,437 @@
       <!-- =============== Hero =============== -->
       <section class="relative overflow-hidden" id="hero">
         <div aria-hidden="true" class="absolute inset-0 grid-fade pointer-events-none"></div>
-        <div aria-hidden="true" class="absolute -top-32 left-1/2 -translate-x-1/2 w-[60rem] h-[40rem] blob-1 pointer-events-none"></div>
-        <div aria-hidden="true" class="absolute top-32 right-0 w-[30rem] h-[30rem] blob-2 pointer-events-none"></div>
+        <div aria-hidden="true" class="absolute -top-40 left-1/2 -translate-x-1/2 w-[64rem] h-[42rem] blob-1 pointer-events-none"></div>
+        <div aria-hidden="true" class="absolute top-24 -right-24 w-[34rem] h-[34rem] blob-2 pointer-events-none"></div>
         <div aria-hidden="true" class="spotlight" id="spotlight"></div>
 
-        <div class="relative max-w-6xl mx-auto px-5 sm:px-8 pt-16 sm:pt-24 pb-20 sm:pb-28">
-          <div class="max-w-3xl">
-            <div class="animate-fade-up [animation-delay:60ms]">
-              <span class="pill">
-                <span class="dot"></span>
-                <span>v0.2 · MCP server + Claude Code plugin</span>
-              </span>
-            </div>
-
-            <h1 class="mt-7 text-[2.6rem] sm:text-[4rem] font-semibold tracking-tight leading-[1.02] animate-fade-up [animation-delay:160ms]">
-              Bring <span class="inline-block align-middle mx-1.5">
-                <span class="inline-block w-[1em] h-[1em] rounded-[0.22em] overflow-hidden align-middle shadow-soft -translate-y-[0.05em]">
-                  <svg viewBox="0 0 100 100" class="block w-full h-full" aria-hidden="true">
-                    <rect width="100" height="100" rx="22" fill="#1976D2"/>
-                    <defs><mask id="h1-cut"><rect width="100" height="100" fill="white"/><line x1="62" y1="40" x2="94" y2="8" stroke="black" stroke-width="12"/></mask></defs>
-                    <g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" mask="url(#h1-cut)">
-                      <circle cx="50" cy="52" r="26" stroke-width="5.5"/>
-                      <rect x="36" y="38" width="28" height="28" rx="4" stroke-width="4.5"/>
-                    </g>
-                    <path d="M 41 53 L 47.5 60 L 92 10" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
+        <div class="relative max-w-6xl mx-auto px-5 sm:px-8 pt-16 sm:pt-24 pb-16 sm:pb-24">
+          <div class="grid lg:grid-cols-[1.05fr,0.95fr] gap-12 lg:gap-10 items-center">
+            <!-- Left: copy -->
+            <div>
+              <div class="animate-fade-up [animation-delay:60ms]">
+                <span class="pill">
+                  <span class="dot"></span>
+                  <span>Open-source MCP server · OAuth-secured · MIT</span>
                 </span>
-              </span>
-              Clio Manage<br/>
-              into Claude.
-            </h1>
+              </div>
 
-            <p class="mt-7 text-lg sm:text-xl leading-relaxed max-w-2xl animate-fade-up [animation-delay:260ms]" style="color: rgb(var(--fg-muted));">
-              An open-source MCP server and Claude Code plugin for Clio's v4 API.
-              Matters, contacts, time, billing, calendar, and documents — one
-              prompt away, running on Azure or locally over stdio.
-            </p>
+              <h1 class="mt-7 text-[2.5rem] sm:text-6xl h-display animate-fade-up [animation-delay:140ms]">
+                Run your practice in
+                <span class="gradient-text">plain English.</span>
+              </h1>
 
-            <div class="mt-9 flex flex-wrap items-center gap-3 animate-fade-up [animation-delay:360ms]">
-              <a href="#install" class="btn btn-primary">
-                Get started
-                <svg viewBox="0 0 20 20" class="w-4 h-4 fill-current"><path d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"/></svg>
-              </a>
-              <a href="https://github.com/patrickking67/clio-manage-mcp" class="btn btn-secondary">
-                <svg viewBox="0 0 24 24" class="w-4 h-4 fill-current" aria-hidden="true"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.55v-2.03c-3.2.7-3.87-1.36-3.87-1.36-.52-1.33-1.27-1.68-1.27-1.68-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.75 2.67 1.25 3.32.96.1-.74.4-1.25.72-1.54-2.55-.29-5.24-1.28-5.24-5.7 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.46.11-3.04 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.78 0c2.2-1.49 3.16-1.18 3.16-1.18.63 1.58.24 2.75.12 3.04.74.81 1.18 1.84 1.18 3.1 0 4.44-2.7 5.41-5.26 5.69.41.35.78 1.04.78 2.1v3.11c0 .3.21.66.8.55C20.21 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5z"/></svg>
-                Star on GitHub
-              </a>
+              <p class="mt-6 text-lg sm:text-xl leading-relaxed max-w-xl animate-fade-up [animation-delay:240ms]" style="color: rgb(var(--fg-muted));">
+                Clio Manage MCP connects <span style="color: rgb(var(--fg)); font-weight: 500;">Clio Manage</span> to Claude.
+                Add it as a remote custom connector, sign in to your own Clio over OAuth, and
+                ask for matters, time, billing, and documents — across <span style="color: rgb(var(--fg)); font-weight: 500;">40+ tools</span>.
+              </p>
+
+              <div class="mt-9 flex flex-wrap items-center gap-3 animate-fade-up [animation-delay:340ms]">
+                <a href="#connect" class="btn btn-primary">
+                  Add to Claude
+                  <svg viewBox="0 0 20 20" class="w-4 h-4 fill-current" aria-hidden="true"><path d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"/></svg>
+                </a>
+                <a href="#deploy" class="btn btn-secondary">
+                  <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14a4 4 0 0 1 .9-7.9 5.5 5.5 0 0 1 10.6-1.4A4.5 4.5 0 0 1 18 14"/><path d="M12 12v8m0-8 3 3m-3-3-3 3"/></svg>
+                  Deploy to Azure
+                </a>
+                <a href="https://github.com/patrickking67/clio-manage-mcp" class="btn btn-ghost" rel="noopener">
+                  <svg viewBox="0 0 24 24" class="w-4 h-4 fill-current" aria-hidden="true"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.55v-2.03c-3.2.7-3.87-1.36-3.87-1.36-.52-1.33-1.27-1.68-1.27-1.68-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.75 2.67 1.25 3.32.96.1-.74.4-1.25.72-1.54-2.55-.29-5.24-1.28-5.24-5.7 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.46.11-3.04 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.78 0c2.2-1.49 3.16-1.18 3.16-1.18.63 1.58.24 2.75.12 3.04.74.81 1.18 1.84 1.18 3.1 0 4.44-2.7 5.41-5.26 5.69.41.35.78 1.04.78 2.1v3.11c0 .3.21.66.8.55C20.21 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5z"/></svg>
+                  View on GitHub
+                </a>
+              </div>
+
+              <div class="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-y-6 gap-x-6 max-w-xl animate-fade-up [animation-delay:460ms]">
+                <div>
+                  <div class="text-3xl font-semibold tabular-nums counter" data-count="40" data-suffix="+">0</div>
+                  <div class="text-xs mt-1 font-mono uppercase tracking-wider" style="color: rgb(var(--fg-faint));">Tools</div>
+                </div>
+                <div>
+                  <div class="text-3xl font-semibold tabular-nums counter" data-count="11">0</div>
+                  <div class="text-xs mt-1 font-mono uppercase tracking-wider" style="color: rgb(var(--fg-faint));">Domains</div>
+                </div>
+                <div>
+                  <div class="text-3xl font-semibold tabular-nums counter" data-count="4">0</div>
+                  <div class="text-xs mt-1 font-mono uppercase tracking-wider" style="color: rgb(var(--fg-faint));">Regions</div>
+                </div>
+                <div>
+                  <div class="text-3xl font-semibold tabular-nums">256</div>
+                  <div class="text-xs mt-1 font-mono uppercase tracking-wider" style="color: rgb(var(--fg-faint));">AES-GCM</div>
+                </div>
+              </div>
             </div>
 
-            <div class="mt-12 grid grid-cols-2 sm:grid-cols-4 gap-y-6 gap-x-8 max-w-2xl animate-fade-up [animation-delay:480ms]">
-              <div>
-                <div class="text-3xl font-semibold tabular-nums counter" data-count="41">0</div>
-                <div class="text-xs mt-1 font-mono uppercase tracking-wider" style="color: rgb(var(--fg-faint));">Tools</div>
+            <!-- Right: Claude chat mock -->
+            <div class="relative animate-fade-up [animation-delay:560ms]">
+              <div aria-hidden="true" class="absolute -inset-6 blob-1 pointer-events-none"></div>
+              <div class="relative card shadow-lifted overflow-hidden">
+                <div class="win-bar">
+                  <span class="win-dot" style="background:#ef4444;"></span>
+                  <span class="win-dot" style="background:#f59e0b;"></span>
+                  <span class="win-dot" style="background:#22c55e;"></span>
+                  <span class="ml-2 text-xs font-mono flex items-center gap-2" style="color: rgb(var(--fg-faint));">
+                    Claude
+                    <span class="inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded" style="background: rgb(var(--bg-soft)); border:1px solid rgb(var(--border));">
+                      <span class="w-3 h-3 rounded-[3px] overflow-hidden inline-block align-middle">
+                        <svg viewBox="0 0 100 100" class="block w-full h-full" aria-hidden="true"><rect width="100" height="100" rx="22" fill="#1976D2"/><defs><mask id="chat-cut"><rect width="100" height="100" fill="white"/><line x1="62" y1="40" x2="94" y2="8" stroke="black" stroke-width="12"/></mask></defs><g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" mask="url(#chat-cut)"><circle cx="50" cy="52" r="26" stroke-width="5.5"/><rect x="36" y="38" width="28" height="28" rx="4" stroke-width="4.5"/></g><path d="M 41 53 L 47.5 60 L 92 10" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      </span>
+                      Clio Manage
+                    </span>
+                  </span>
+                </div>
+
+                <div class="p-5 sm:p-6 space-y-4">
+                  <!-- user message -->
+                  <div class="flex justify-end">
+                    <div class="chat-bubble-user px-4 py-2.5 text-sm max-w-[85%] leading-relaxed">
+                      Show me open matters for <strong class="font-semibold">Acme Corp</strong>, and log <strong class="font-semibold">1.5 hours</strong> to matter 4821.
+                    </div>
+                  </div>
+
+                  <!-- ai message -->
+                  <div class="flex justify-start">
+                    <div class="chat-bubble-ai px-4 py-3 text-sm max-w-[92%] w-full leading-relaxed" style="color: rgb(var(--fg));">
+                      <div class="flex items-center gap-2 text-xs font-mono mb-2.5" style="color: rgb(var(--fg-faint));">
+                        <span class="inline-flex items-center gap-1.5">
+                          <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 7l-2-2-7 7v2h2l7-7z"/><path d="M11 4l3 3"/></svg>
+                          called 2 Clio tools
+                        </span>
+                      </div>
+                      <div class="space-y-1.5 font-mono text-xs" style="color: rgb(var(--fg-muted));">
+                        <div class="flex items-baseline gap-2"><span style="color: rgb(var(--success));">&#10003;</span> clio_list_matters <span style="color: rgb(var(--fg-faint));">client=Acme Corp · status=open</span></div>
+                        <div class="flex items-baseline gap-2"><span style="color: rgb(var(--success));">&#10003;</span> clio_create_time_entry <span style="color: rgb(var(--fg-faint));">matter 4821 · 1.5h</span></div>
+                      </div>
+                      <div class="mt-3 pt-3 text-sm" style="border-top: 1px solid rgb(var(--border));">
+                        Acme Corp has <strong class="font-semibold">3 open matters</strong> — Series B Financing, Trademark Filing, and MSA Review.
+                        I logged <strong class="font-semibold">1.5 billable hours</strong> to matter&nbsp;4821 (Series B Financing).
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div>
-                <div class="text-3xl font-semibold tabular-nums counter" data-count="10">0</div>
-                <div class="text-xs mt-1 font-mono uppercase tracking-wider" style="color: rgb(var(--fg-faint));">Skills</div>
-              </div>
-              <div>
-                <div class="text-3xl font-semibold tabular-nums counter" data-count="2">0</div>
-                <div class="text-xs mt-1 font-mono uppercase tracking-wider" style="color: rgb(var(--fg-faint));">Agents</div>
-              </div>
-              <div>
-                <div class="text-3xl font-semibold tabular-nums counter" data-count="4">0</div>
-                <div class="text-xs mt-1 font-mono uppercase tracking-wider" style="color: rgb(var(--fg-faint));">US · CA · EU · AU</div>
-              </div>
+              <p class="mt-3 text-xs font-mono text-center" style="color: rgb(var(--fg-faint));">
+                one prompt &rarr; two audited Clio API calls &rarr; a real answer
+              </p>
             </div>
           </div>
 
-          <!-- live terminal demo (cycles through example prompts) -->
-          <div class="mt-14 sm:mt-20 animate-fade-up [animation-delay:600ms]">
-            <div class="card overflow-hidden shadow-lifted max-w-4xl" id="terminal">
-              <div class="term-bar">
-                <span class="term-dot" style="background: #ef4444;"></span>
-                <span class="term-dot" style="background: #f59e0b;"></span>
-                <span class="term-dot" style="background: #22c55e;"></span>
-                <span class="ml-3 text-xs font-mono" style="color: rgb(var(--fg-faint));">claude — clio-manage · live demo</span>
-                <span class="term-tabs ml-auto" aria-hidden="true">
-                  <span class="term-tab" data-tab="0"></span>
-                  <span class="term-tab" data-tab="1"></span>
-                  <span class="term-tab" data-tab="2"></span>
-                  <span class="term-tab" data-tab="3"></span>
-                </span>
-              </div>
-              <div class="grid sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x" style="border-color: rgb(var(--border));">
-                <div class="p-5 sm:p-6" style="border-color: rgb(var(--border));">
-                  <div class="term-prompt" id="termPrompt" aria-live="polite"></div>
-                </div>
-                <div class="p-5 sm:p-6">
-                  <div class="term-out" id="termOut"></div>
-                  <div class="term-result" id="termResult"></div>
-                </div>
+          <!-- domain marquee -->
+          <div class="mt-14 sm:mt-16 reveal">
+            <div class="text-center text-xs font-mono uppercase tracking-wider mb-4" style="color: rgb(var(--fg-faint));">Speaks the Clio v4 API across</div>
+            <div class="marquee">
+              <div class="marquee-track" aria-hidden="true">
+                <!-- group 1 -->
+                <span class="pill">Matters</span><span class="pill">Contacts</span><span class="pill">Time &amp; Activities</span><span class="pill">Tasks</span><span class="pill">Notes</span><span class="pill">Calendar</span><span class="pill">Documents</span><span class="pill">Bills</span><span class="pill">Users</span><span class="pill">Practice Areas</span><span class="pill">Workflows</span>
+                <!-- group 2 (duplicate for seamless loop) -->
+                <span class="pill">Matters</span><span class="pill">Contacts</span><span class="pill">Time &amp; Activities</span><span class="pill">Tasks</span><span class="pill">Notes</span><span class="pill">Calendar</span><span class="pill">Documents</span><span class="pill">Bills</span><span class="pill">Users</span><span class="pill">Practice Areas</span><span class="pill">Workflows</span>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =============== Connect (3-step connector flow) =============== -->
+      <section id="connect" class="relative" style="border-top: 1px solid rgb(var(--border)); background: rgb(var(--bg-soft));">
+        <div class="max-w-6xl mx-auto px-5 sm:px-8 py-20 sm:py-28">
+          <div class="reveal max-w-2xl">
+            <div class="section-eyebrow">Connect in under a minute</div>
+            <h2 class="mt-3 text-3xl sm:text-5xl h-display">
+              Three steps. Your own Clio.
+            </h2>
+            <p class="mt-5 text-lg leading-relaxed" style="color: rgb(var(--fg-muted));">
+              Host the server once, add it to Claude as a custom connector, then sign in to Clio.
+              Each user connects <span style="color: rgb(var(--fg)); font-weight: 500;">their own</span> Clio account over OAuth —
+              no API keys pasted into chat, ever.
+            </p>
+          </div>
+
+          <div class="mt-14 grid lg:grid-cols-3 gap-6">
+            <!-- Step 1 -->
+            <article class="reveal" data-delay="1">
+              <div class="flex items-center gap-4">
+                <span class="step-num">1</span>
+                <div>
+                  <div class="text-xs font-mono uppercase tracking-wider" style="color: rgb(var(--fg-faint));">Host it</div>
+                  <h3 class="text-lg font-semibold leading-tight">Deploy to Azure</h3>
+                </div>
+              </div>
+              <p class="mt-4 text-sm leading-relaxed" style="color: rgb(var(--fg-muted));">
+                One command provisions Container Apps, Key Vault, and a managed identity.
+                You get an HTTPS <code class="font-mono text-xs" style="color: rgb(var(--accent));">/mcp</code> endpoint.
+              </p>
+              <div class="code mt-4">
+                <button class="copy" type="button" data-copy aria-label="Copy command">copy</button>
+                <pre><code>azd up</code></pre>
+              </div>
+              <p class="mt-3 text-xs" style="color: rgb(var(--fg-faint));">
+                &rarr; <span class="font-mono">https://&lt;your-app&gt;.azurecontainerapps.io/mcp</span>
+              </p>
+            </article>
+
+            <!-- Step 2 -->
+            <article class="reveal" data-delay="2">
+              <div class="flex items-center gap-4">
+                <span class="step-num">2</span>
+                <div>
+                  <div class="text-xs font-mono uppercase tracking-wider" style="color: rgb(var(--fg-faint));">Add it</div>
+                  <h3 class="text-lg font-semibold leading-tight">Add custom connector</h3>
+                </div>
+              </div>
+              <p class="mt-4 text-sm leading-relaxed" style="color: rgb(var(--fg-muted));">
+                In Claude, open
+                <span style="color: rgb(var(--fg));">Settings &rarr; Connectors &rarr; Add custom connector</span>
+                and paste your server URL.
+              </p>
+              <div class="card mt-4 overflow-hidden">
+                <div class="win-bar" style="padding:0.5rem 0.8rem;">
+                  <span class="win-dot" style="background:#ef4444;"></span>
+                  <span class="win-dot" style="background:#f59e0b;"></span>
+                  <span class="win-dot" style="background:#22c55e;"></span>
+                  <span class="ml-2 text-[0.65rem] font-mono" style="color: rgb(var(--fg-faint));">Add custom connector</span>
+                </div>
+                <div class="p-4 space-y-3">
+                  <div>
+                    <div class="text-[0.6rem] font-mono uppercase tracking-wider mb-1" style="color: rgb(var(--fg-faint));">Name</div>
+                    <div class="text-sm px-2.5 py-1.5 rounded-md" style="background: rgb(var(--bg-soft)); border:1px solid rgb(var(--border));">Clio Manage</div>
+                  </div>
+                  <div>
+                    <div class="text-[0.6rem] font-mono uppercase tracking-wider mb-1" style="color: rgb(var(--fg-faint));">Remote MCP server URL</div>
+                    <div class="text-xs font-mono px-2.5 py-1.5 rounded-md break-all" style="background: rgb(var(--bg-soft)); border:1px solid rgb(var(--accent) / 0.4); color: rgb(var(--accent));">https://&lt;your-app&gt;.azurecontainerapps.io/mcp</div>
+                  </div>
+                  <div class="flex justify-end pt-1">
+                    <span class="btn btn-primary btn-sm" aria-hidden="true">Add</span>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <!-- Step 3 -->
+            <article class="reveal" data-delay="3">
+              <div class="flex items-center gap-4">
+                <span class="step-num">3</span>
+                <div>
+                  <div class="text-xs font-mono uppercase tracking-wider" style="color: rgb(var(--fg-faint));">Sign in</div>
+                  <h3 class="text-lg font-semibold leading-tight">Authorize Clio</h3>
+                </div>
+              </div>
+              <p class="mt-4 text-sm leading-relaxed" style="color: rgb(var(--fg-muted));">
+                Claude walks you through an OAuth login to your own Clio account.
+                Approve once — tokens are encrypted and stored server-side.
+              </p>
+              <div class="card mt-4 overflow-hidden">
+                <div class="p-4">
+                  <div class="flex items-center gap-3">
+                    <span class="block w-9 h-9 rounded-lg overflow-hidden shadow-sm shrink-0">
+                      <svg viewBox="0 0 100 100" class="block w-full h-full" aria-hidden="true"><rect width="100" height="100" rx="22" fill="#1976D2"/><defs><mask id="oauth-cut"><rect width="100" height="100" fill="white"/><line x1="62" y1="40" x2="94" y2="8" stroke="black" stroke-width="12"/></mask></defs><g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" mask="url(#oauth-cut)"><circle cx="50" cy="52" r="26" stroke-width="5.5"/><rect x="36" y="38" width="28" height="28" rx="4" stroke-width="4.5"/></g><path d="M 41 53 L 47.5 60 L 92 10" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </span>
+                    <div class="min-w-0">
+                      <div class="text-sm font-semibold">Sign in to Clio</div>
+                      <div class="text-[0.7rem] font-mono" style="color: rgb(var(--fg-faint));">app.clio.com · OAuth 2.1</div>
+                    </div>
+                  </div>
+                  <p class="mt-3 text-xs leading-relaxed" style="color: rgb(var(--fg-muted));">
+                    <span style="color: rgb(var(--fg)); font-weight:500;">Clio Manage MCP</span> is requesting access to matters, contacts, activities, calendar, and documents.
+                  </p>
+                  <div class="mt-3 flex items-center gap-2">
+                    <span class="btn btn-primary btn-sm" aria-hidden="true">Allow access</span>
+                    <span class="inline-flex items-center gap-1.5 text-xs font-mono" style="color: rgb(var(--success));">
+                      <span class="relative flex w-2 h-2">
+                        <span class="absolute inline-flex h-full w-full rounded-full opacity-50" style="background: rgb(var(--success)); animation: pulseRing 1.8s ease-out infinite;"></span>
+                        <span class="relative inline-flex rounded-full h-2 w-2" style="background: rgb(var(--success));"></span>
+                      </span>
+                      connected
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <!-- under-step note + local alternative -->
+          <div class="mt-12 reveal flex flex-col sm:flex-row sm:items-center justify-between gap-4 card p-5 sm:p-6">
+            <div class="flex items-start gap-3">
+              <svg viewBox="0 0 24 24" class="w-5 h-5 mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color: rgb(var(--accent));" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2.5 2.5"/></svg>
+              <p class="text-sm leading-relaxed" style="color: rgb(var(--fg-muted));">
+                Prefer to run it on your own machine for solo or dev use?
+                The <span style="color: rgb(var(--fg)); font-weight:500;">local (stdio)</span> path authenticates once in your browser — no hosting required.
+              </p>
+            </div>
+            <a href="#deploy" class="btn btn-secondary btn-sm shrink-0">
+              See both options
+              <svg viewBox="0 0 20 20" class="w-4 h-4 fill-current" aria-hidden="true"><path d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"/></svg>
+            </a>
           </div>
         </div>
       </section>
 
       <!-- =============== Features =============== -->
       <section id="features" class="relative" style="border-top: 1px solid rgb(var(--border));">
-        <div class="max-w-6xl mx-auto px-5 sm:px-8 py-20 sm:py-24">
+        <div class="max-w-6xl mx-auto px-5 sm:px-8 py-20 sm:py-28">
           <div class="reveal max-w-2xl">
             <div class="section-eyebrow">What you get</div>
-            <h2 class="mt-3 text-3xl sm:text-4xl font-semibold tracking-tight leading-tight">
-              Three layers, one repository.
+            <h2 class="mt-3 text-3xl sm:text-5xl h-display">
+              Built for a law firm,<br class="hidden sm:block"/> not a demo.
             </h2>
-            <p class="mt-4 text-lg" style="color: rgb(var(--fg-muted));">
-              The MCP gives Claude capability. The plugin gives it judgment.
-              The Azure deployment gives the firm a place to host both.
+            <p class="mt-5 text-lg leading-relaxed" style="color: rgb(var(--fg-muted));">
+              Secure by default, deployable in one command, and useful from the first prompt.
+              Works with Claude, Claude Code, and any MCP client.
             </p>
           </div>
 
-          <div class="mt-12 grid md:grid-cols-3 gap-5 reveal">
+          <div class="mt-12 grid sm:grid-cols-2 lg:grid-cols-3 gap-5 reveal">
+            <!-- 1 per-user OAuth -->
             <article class="card card-hover tilt p-6">
-              <div class="w-10 h-10 rounded-lg grid place-items-center" style="background: rgb(25 118 210 / 0.1); color: rgb(var(--accent));">
-                <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+              <div class="w-10 h-10 rounded-xl grid place-items-center" style="background: rgb(25 118 210 / 0.1); color: rgb(var(--accent));">
+                <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15.5" r="1.3"/></svg>
               </div>
-              <h3 class="mt-5 text-lg font-semibold">MCP server</h3>
-              <p class="mt-2 text-sm" style="color: rgb(var(--fg-muted));">
-                Forty-one typed tools across twelve Clio domains. Same binary,
-                two transports — stdio for local, stateless HTTP for Azure.
+              <h3 class="mt-5 text-lg font-semibold">Per-user Clio OAuth</h3>
+              <p class="mt-2 text-sm leading-relaxed" style="color: rgb(var(--fg-muted));">
+                Each person signs in to their own Clio account via OAuth 2.1 with PKCE.
+                No API keys pasted around chat — Claude handles the handshake.
               </p>
-              <ul class="mt-4 space-y-1.5 text-sm">
-                <li class="flex items-baseline gap-2"><span style="color: rgb(var(--accent));">→</span> OAuth 2.0 + AES-256-GCM at rest</li>
-                <li class="flex items-baseline gap-2"><span style="color: rgb(var(--accent));">→</span> Append-only JSONL audit log</li>
-                <li class="flex items-baseline gap-2"><span style="color: rgb(var(--accent));">→</span> US · CA · EU · AU regions</li>
-              </ul>
             </article>
 
+            <!-- 2 40+ tools -->
             <article class="card card-hover tilt p-6">
-              <div class="w-10 h-10 rounded-lg grid place-items-center" style="background: rgb(168 85 247 / 0.1); color: rgb(168 85 247);">
-                <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 6v6c0 5 3.5 9.5 8 10 4.5-.5 8-5 8-10V6l-8-4z"/></svg>
+              <div class="w-10 h-10 rounded-xl grid place-items-center" style="background: rgb(99 102 241 / 0.1); color: rgb(99 102 241);">
+                <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
               </div>
-              <h3 class="mt-5 text-lg font-semibold">Claude Code plugin</h3>
-              <p class="mt-2 text-sm" style="color: rgb(var(--fg-muted));">
-                Ten skills and two agents that wire the MCP into named
-                workflows Claude picks from automatically.
+              <h3 class="mt-5 text-lg font-semibold">40+ tools, 11 domains</h3>
+              <p class="mt-2 text-sm leading-relaxed" style="color: rgb(var(--fg-muted));">
+                Matters, contacts, time, tasks, notes, calendar, documents, bills, users,
+                practice areas — every one Zod-validated and audit-logged.
               </p>
-              <ul class="mt-4 space-y-1.5 text-sm">
-                <li class="flex items-baseline gap-2"><span style="color: rgb(168 85 247);">→</span> Intake, time, billing, trust, docs</li>
-                <li class="flex items-baseline gap-2"><span style="color: rgb(168 85 247);">→</span> Best-practice + setup walkthroughs</li>
-                <li class="flex items-baseline gap-2"><span style="color: rgb(168 85 247);">→</span> Intake + read-only analyst agents</li>
-              </ul>
             </article>
 
+            <!-- 3 Azure-native deploy -->
             <article class="card card-hover tilt p-6">
-              <div class="w-10 h-10 rounded-lg grid place-items-center" style="background: rgb(20 184 166 / 0.1); color: rgb(20 184 166);">
-                <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3 5 21h6l1.5-3.5L17 21h2l-5-18Zm-1 6 2.5 8h-5l2.5-8Z"/></svg>
+              <div class="w-10 h-10 rounded-xl grid place-items-center" style="background: rgb(20 184 166 / 0.1); color: rgb(20 184 166);">
+                <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14a4 4 0 0 1 .9-7.9 5.5 5.5 0 0 1 10.6-1.4A4.5 4.5 0 0 1 18 14H4z"/><path d="M9 18h6"/></svg>
               </div>
-              <h3 class="mt-5 text-lg font-semibold">Azure deployment</h3>
-              <p class="mt-2 text-sm" style="color: rgb(var(--fg-muted));">
-                One <code class="font-mono">azd up</code> provisions Container
-                Apps, ACR, Key Vault, Files, App Insights — secrets via managed
-                identity.
+              <h3 class="mt-5 text-lg font-semibold">Azure-native deploy</h3>
+              <p class="mt-2 text-sm leading-relaxed" style="color: rgb(var(--fg-muted));">
+                <code class="font-mono text-xs">azd up</code> provisions Container Apps,
+                Key Vault, and managed identity. Secrets never live in your shell.
               </p>
-              <ul class="mt-4 space-y-1.5 text-sm">
-                <li class="flex items-baseline gap-2"><span style="color: rgb(20 184 166);">→</span> Stateless HTTP, horizontal scale</li>
-                <li class="flex items-baseline gap-2"><span style="color: rgb(20 184 166);">→</span> Timing-safe bearer auth</li>
-                <li class="flex items-baseline gap-2"><span style="color: rgb(20 184 166);">→</span> ≈ $25–30/mo, 1 warm replica</li>
-              </ul>
+            </article>
+
+            <!-- 4 Encrypted + audit -->
+            <article class="card card-hover tilt p-6">
+              <div class="w-10 h-10 rounded-xl grid place-items-center" style="background: rgb(34 197 94 / 0.1); color: rgb(var(--success));">
+                <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 9.5C8 19.3 5 15.5 5 11V6l7-3z"/><path d="m9 12 2 2 4-4"/></svg>
+              </div>
+              <h3 class="mt-5 text-lg font-semibold">Encrypted + audited</h3>
+              <p class="mt-2 text-sm leading-relaxed" style="color: rgb(var(--fg-muted));">
+                AES-256-GCM tokens at rest and an append-only audit log designed around
+                <span style="color: rgb(var(--fg));">ABA Formal Opinion 512</span>.
+              </p>
+            </article>
+
+            <!-- 5 Multi-region -->
+            <article class="card card-hover tilt p-6">
+              <div class="w-10 h-10 rounded-xl grid place-items-center" style="background: rgb(245 158 11 / 0.12); color: rgb(245 158 11);">
+                <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>
+              </div>
+              <h3 class="mt-5 text-lg font-semibold">Multi-region Clio</h3>
+              <p class="mt-2 text-sm leading-relaxed" style="color: rgb(var(--fg-muted));">
+                US, CA, EU, and AU. Set <code class="font-mono text-xs">CLIO_REGION</code> to
+                match your firm — the server resolves the right endpoints automatically.
+              </p>
+            </article>
+
+            <!-- 6 Stateless / scalable -->
+            <article class="card card-hover tilt p-6">
+              <div class="w-10 h-10 rounded-xl grid place-items-center" style="background: rgb(236 72 153 / 0.1); color: rgb(236 72 153);">
+                <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>
+              </div>
+              <h3 class="mt-5 text-lg font-semibold">Stateless &amp; scalable</h3>
+              <p class="mt-2 text-sm leading-relaxed" style="color: rgb(var(--fg-muted));">
+                The HTTP transport is stateless and POST-only, so it scales horizontally
+                (1 &rarr; 4 replicas) behind Container Apps autoscale.
+              </p>
+            </article>
+
+            <!-- 7 Any MCP client -->
+            <article class="card card-hover tilt p-6">
+              <div class="w-10 h-10 rounded-xl grid place-items-center" style="background: rgb(168 85 247 / 0.1); color: rgb(168 85 247);">
+                <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><circle cx="12" cy="12" r="4"/></svg>
+              </div>
+              <h3 class="mt-5 text-lg font-semibold">Claude, Code &amp; beyond</h3>
+              <p class="mt-2 text-sm leading-relaxed" style="color: rgb(var(--fg-muted));">
+                Works as a remote connector in Claude, over stdio in Claude Code, and with
+                any MCP-compatible client. Ships a plugin with 10 skills + 2 agents.
+              </p>
+            </article>
+
+            <!-- 8 Escape hatch -->
+            <article class="card card-hover tilt p-6">
+              <div class="w-10 h-10 rounded-xl grid place-items-center" style="background: rgb(100 116 139 / 0.14); color: rgb(100 116 139);">
+                <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 8-4 4 4 4M17 8l4 4-4 4M14 4l-4 16"/></svg>
+              </div>
+              <h3 class="mt-5 text-lg font-semibold">Generic API escape hatch</h3>
+              <p class="mt-2 text-sm leading-relaxed" style="color: rgb(var(--fg-muted));">
+                <code class="font-mono text-xs">clio_api_request</code> reaches any Clio v4
+                endpoint the typed tools don't cover yet — nothing is off-limits.
+              </p>
+            </article>
+
+            <!-- 9 Composite intake -->
+            <article class="card card-hover tilt p-6" style="border-color: rgb(var(--accent) / 0.35); background: rgb(var(--accent) / 0.04);">
+              <div class="w-10 h-10 rounded-xl grid place-items-center" style="background: rgb(var(--accent) / 0.15); color: rgb(var(--accent));">
+                <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 14l2 2 4-4"/></svg>
+              </div>
+              <h3 class="mt-5 text-lg font-semibold">&ldquo;Open new matter&rdquo; workflow</h3>
+              <p class="mt-2 text-sm leading-relaxed" style="color: rgb(var(--fg-muted));">
+                One composite tool chains client lookup, contact creation, matter, opening note,
+                and intake task — a full intake from a single prompt.
+              </p>
             </article>
           </div>
         </div>
       </section>
 
-      <!-- =============== Install =============== -->
-      <section id="install" class="relative" style="border-top: 1px solid rgb(var(--border)); background: rgb(var(--bg-soft));">
+      <!-- =============== Live demo terminal =============== -->
+      <section class="relative" style="border-top: 1px solid rgb(var(--border)); background: rgb(var(--bg-soft));">
         <div class="max-w-6xl mx-auto px-5 sm:px-8 py-20 sm:py-24">
-          <div class="reveal max-w-2xl">
-            <div class="section-eyebrow">Install</div>
-            <h2 class="mt-3 text-3xl sm:text-4xl font-semibold tracking-tight leading-tight">
-              Five minutes to your first call.
-            </h2>
-            <p class="mt-4 text-lg" style="color: rgb(var(--fg-muted));">
-              The local path is three terminal commands and one OAuth dance.
-              For firm-wide deployment, swap step three for
-              <code class="font-mono">azd up</code>.
-            </p>
-          </div>
-
-          <div class="mt-12 grid lg:grid-cols-3 gap-5 reveal">
-            <div class="card p-6">
-              <div class="flex items-center gap-3">
-                <span class="grid place-items-center w-8 h-8 rounded-lg text-sm font-semibold" style="background: rgb(var(--accent) / 0.1); color: rgb(var(--accent));">1</span>
-                <h3 class="font-semibold">Clone &amp; build</h3>
-              </div>
-              <div class="code mt-4">
-                <button class="copy" data-copy>copy</button>
-                <pre><code>git clone https://github.com/<wbr>patrickking67/clio-manage-mcp
-cd clio-manage-mcp
-npm install
-npm run build</code></pre>
-              </div>
-            </div>
-
-            <div class="card p-6">
-              <div class="flex items-center gap-3">
-                <span class="grid place-items-center w-8 h-8 rounded-lg text-sm font-semibold" style="background: rgb(var(--accent) / 0.1); color: rgb(var(--accent));">2</span>
-                <h3 class="font-semibold">Configure OAuth</h3>
-              </div>
-              <div class="code mt-4">
-                <button class="copy" data-copy>copy</button>
-                <pre><code>cp .env.example .env
-<span class="muted"># Create app at developers.clio.com</span>
-<span class="muted"># Redirect URI:</span>
-<span class="muted">#   http://localhost:53682/oauth/callback</span>
-<span class="muted"># Paste CLIO_CLIENT_ID + SECRET</span></code></pre>
-              </div>
-            </div>
-
-            <div class="card p-6">
-              <div class="flex items-center gap-3">
-                <span class="grid place-items-center w-8 h-8 rounded-lg text-sm font-semibold" style="background: rgb(var(--accent) / 0.1); color: rgb(var(--accent));">3</span>
-                <h3 class="font-semibold">Run &amp; verify</h3>
-              </div>
-              <div class="code mt-4">
-                <button class="copy" data-copy>copy</button>
-                <pre><code>npm run start:stdio
-<span class="muted"># in another shell:</span>
-npm run smoke:stdio
-<span class="ok"># → OK 41 tools</span></code></pre>
-              </div>
-            </div>
-          </div>
-
-          <div class="mt-6 card p-6 reveal">
-            <div class="flex flex-wrap items-baseline justify-between gap-2">
-              <h3 class="font-semibold">Add to Claude Code</h3>
-              <span class="text-xs font-mono" style="color: rgb(var(--fg-faint));">~/.claude/mcp_servers.json</span>
-            </div>
-            <div class="code mt-3">
-              <button class="copy" data-copy>copy</button>
-              <pre><code>{
-  <span class="acc">"mcpServers"</span>: {
-    <span class="acc">"clio-manage"</span>: {
-      <span class="acc">"command"</span>: <span class="ok">"node"</span>,
-      <span class="acc">"args"</span>: [<span class="ok">"/path/to/clio-manage-mcp/build/index.js"</span>, <span class="ok">"--stdio"</span>],
-      <span class="acc">"env"</span>: { <span class="acc">"CLIO_REGION"</span>: <span class="ok">"us"</span> }
-    }
-  }
-}</code></pre>
-            </div>
-            <p class="mt-3 text-sm" style="color: rgb(var(--fg-muted));">
-              Then <code class="font-mono">claude /mcp</code> lists
-              <span class="font-mono" style="color: rgb(var(--success));">clio-manage ✓</span>
-              with 41 tools.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <!-- =============== Connector preview =============== -->
-      <section id="connector" class="relative" style="border-top: 1px solid rgb(var(--border));">
-        <div class="max-w-6xl mx-auto px-5 sm:px-8 py-20 sm:py-24">
-          <div class="grid lg:grid-cols-2 gap-12 items-center">
+          <div class="grid lg:grid-cols-[0.85fr,1.15fr] gap-10 lg:gap-12 items-center">
             <div class="reveal">
-              <div class="section-eyebrow">What gets installed</div>
-              <h2 class="mt-3 text-3xl sm:text-4xl font-semibold tracking-tight leading-tight">
-                A first-class<br/>Clio Manage connector.
-              </h2>
-              <p class="mt-5 text-lg leading-relaxed max-w-lg" style="color: rgb(var(--fg-muted));">
-                After installing the plugin, the MCP appears in your connector
-                list with the proper Clio identity — forty-one tools,
-                OAuth-bound, audited, ready to call.
+              <div class="section-eyebrow">In practice</div>
+              <h2 class="mt-3 text-3xl sm:text-4xl h-display">Ask. Claude does the rest.</h2>
+              <p class="mt-5 text-lg leading-relaxed" style="color: rgb(var(--fg-muted));">
+                Natural-language requests become typed, validated Clio calls — read and write —
+                each one recorded to the audit log. Watch a few real prompts run.
               </p>
-              <a href="#install" class="mt-7 btn btn-primary inline-flex">
-                Install the plugin
-                <svg viewBox="0 0 20 20" class="w-4 h-4 fill-current"><path d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"/></svg>
-              </a>
-            </div>
-
-            <div class="reveal relative">
-              <div aria-hidden="true" class="absolute -inset-8 blob-1 pointer-events-none"></div>
-              <div class="relative card shadow-lifted overflow-hidden">
-                <div class="px-4 py-2.5 flex items-center gap-1.5 text-xs font-mono" style="border-bottom: 1px solid rgb(var(--border)); color: rgb(var(--fg-faint));">
-                  <span class="w-2 h-2 rounded-full" style="background: #ef4444;"></span>
-                  <span class="w-2 h-2 rounded-full" style="background: #f59e0b;"></span>
-                  <span class="w-2 h-2 rounded-full" style="background: #22c55e;"></span>
-                  <span class="ml-2">claude /mcp · connectors</span>
-                </div>
-                <div class="p-5 sm:p-6">
-                  <div class="flex items-start gap-4">
-                    <span class="block w-14 h-14 rounded-xl overflow-hidden shadow-soft shrink-0">
-                      <svg viewBox="0 0 100 100" class="block w-full h-full" aria-hidden="true">
-                        <rect width="100" height="100" rx="22" fill="#1976D2"/>
-                        <defs><mask id="conn-cut"><rect width="100" height="100" fill="white"/><line x1="62" y1="40" x2="94" y2="8" stroke="black" stroke-width="12"/></mask></defs>
-                        <g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" mask="url(#conn-cut)">
-                          <circle cx="50" cy="52" r="26" stroke-width="5.5"/>
-                          <rect x="36" y="38" width="28" height="28" rx="4" stroke-width="4.5"/>
-                        </g>
-                        <path d="M 41 53 L 47.5 60 L 92 10" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-                      </svg>
-                    </span>
-                    <div class="flex-1 min-w-0">
-                      <div class="flex items-start justify-between gap-3">
-                        <div>
-                          <h4 class="font-semibold text-lg">Clio Manage</h4>
-                          <p class="text-xs font-mono mt-0.5" style="color: rgb(var(--fg-faint));">mcp · stdio · build/index.js</p>
-                        </div>
-                        <span class="inline-flex items-center gap-1.5 text-xs font-mono whitespace-nowrap pt-1" style="color: rgb(var(--success));">
-                          <span class="relative flex w-2 h-2">
-                            <span class="absolute inline-flex h-full w-full rounded-full opacity-50" style="background: rgb(var(--success)); animation: pulseRing 1.8s ease-out infinite;"></span>
-                            <span class="relative inline-flex rounded-full h-2 w-2" style="background: rgb(var(--success));"></span>
-                          </span>
-                          connected
-                        </span>
-                      </div>
-                      <div class="mt-4 grid grid-cols-3 gap-3 text-sm">
-                        <div>
-                          <div class="text-[0.65rem] uppercase tracking-wider font-mono" style="color: rgb(var(--fg-faint));">Tools</div>
-                          <div class="text-xl font-semibold tabular-nums mt-0.5">41</div>
-                        </div>
-                        <div>
-                          <div class="text-[0.65rem] uppercase tracking-wider font-mono" style="color: rgb(var(--fg-faint));">OAuth</div>
-                          <div class="text-xl font-semibold mt-0.5" style="color: rgb(var(--success));">✓</div>
-                        </div>
-                        <div>
-                          <div class="text-[0.65rem] uppercase tracking-wider font-mono" style="color: rgb(var(--fg-faint));">Region</div>
-                          <div class="text-xl font-semibold mt-0.5">us</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="mt-5 pt-5" style="border-top: 1px solid rgb(var(--border));">
-                    <div class="text-[0.65rem] uppercase tracking-wider font-mono mb-2" style="color: rgb(var(--fg-faint));">Surfaces</div>
-                    <div class="flex flex-wrap gap-1.5">
-                      <span class="px-2 py-0.5 rounded text-xs font-mono" style="background: rgb(var(--bg-soft)); border: 1px solid rgb(var(--border)); color: rgb(var(--fg-muted));">Matters</span>
-                      <span class="px-2 py-0.5 rounded text-xs font-mono" style="background: rgb(var(--bg-soft)); border: 1px solid rgb(var(--border)); color: rgb(var(--fg-muted));">Contacts</span>
-                      <span class="px-2 py-0.5 rounded text-xs font-mono" style="background: rgb(var(--bg-soft)); border: 1px solid rgb(var(--border)); color: rgb(var(--fg-muted));">Time</span>
-                      <span class="px-2 py-0.5 rounded text-xs font-mono" style="background: rgb(var(--bg-soft)); border: 1px solid rgb(var(--border)); color: rgb(var(--fg-muted));">Bills</span>
-                      <span class="px-2 py-0.5 rounded text-xs font-mono" style="background: rgb(var(--bg-soft)); border: 1px solid rgb(var(--border)); color: rgb(var(--fg-muted));">Calendar</span>
-                      <span class="px-2 py-0.5 rounded text-xs font-mono" style="background: rgb(var(--bg-soft)); border: 1px solid rgb(var(--border)); color: rgb(var(--fg-muted));">Documents</span>
-                      <span class="px-2 py-0.5 rounded text-xs font-mono" style="background: rgb(var(--bg-soft)); border: 1px solid rgb(var(--border)); color: rgb(var(--fg-muted));">Tasks</span>
-                      <span class="px-2 py-0.5 rounded text-xs font-mono" style="background: rgb(var(--bg-soft)); border: 1px solid rgb(var(--border)); color: rgb(var(--fg-muted));">Notes</span>
-                      <span class="px-2 py-0.5 rounded text-xs font-mono" style="background: rgb(var(--accent) / 0.1); border: 1px solid rgb(var(--accent) / 0.3); color: rgb(var(--accent));">+ composite</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <p class="mt-3 text-xs font-mono text-center" style="color: rgb(var(--fg-faint));">
-                connector card as it appears in <span style="color: rgb(var(--fg));">claude /mcp</span>
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- =============== Skills + Agents =============== -->
-      <section id="skills" class="relative" style="border-top: 1px solid rgb(var(--border)); background: rgb(var(--bg-soft));">
-        <div class="max-w-6xl mx-auto px-5 sm:px-8 py-20 sm:py-24">
-          <div class="reveal max-w-2xl">
-            <div class="section-eyebrow">Plugin contents</div>
-            <h2 class="mt-3 text-3xl sm:text-4xl font-semibold tracking-tight leading-tight">
-              Ten skills, two agents.
-            </h2>
-            <p class="mt-4 text-lg" style="color: rgb(var(--fg-muted));">
-              Each skill is a short document with a trigger phrase and a
-              procedure. Claude picks the right one automatically based on
-              what the user asks.
-            </p>
-          </div>
-
-          <div class="mt-12 grid lg:grid-cols-2 gap-5 reveal">
-            <div class="card p-6">
-              <div class="flex items-baseline justify-between">
-                <h3 class="font-semibold text-lg">Skills</h3>
-                <span class="text-xs font-mono" style="color: rgb(var(--fg-faint));">model context</span>
-              </div>
-              <ul class="mt-5 divide-y" style="border-color: rgb(var(--border-soft));">
-                <li class="py-2.5 flex justify-between gap-3 text-sm"><span class="font-mono" style="color: rgb(var(--accent));">clio-setup</span><span style="color: rgb(var(--fg-muted));">oauth walkthrough</span></li>
-                <li class="py-2.5 flex justify-between gap-3 text-sm" style="border-color: rgb(var(--border-soft));"><span class="font-mono" style="color: rgb(var(--accent));">clio-search</span><span style="color: rgb(var(--fg-muted));">list-filter routing</span></li>
-                <li class="py-2.5 flex justify-between gap-3 text-sm" style="border-color: rgb(var(--border-soft));"><span class="font-mono" style="color: rgb(var(--accent));">clio-best-practices</span><span style="color: rgb(var(--fg-muted));">aba op 512 + api hygiene</span></li>
-                <li class="py-2.5 flex justify-between gap-3 text-sm" style="border-color: rgb(var(--border-soft));"><span class="font-mono" style="color: rgb(var(--accent));">clio-matter-intake</span><span style="color: rgb(var(--fg-muted));">composite intake flow</span></li>
-                <li class="py-2.5 flex justify-between gap-3 text-sm" style="border-color: rgb(var(--border-soft));"><span class="font-mono" style="color: rgb(var(--accent));">clio-time-entry</span><span style="color: rgb(var(--fg-muted));">billable, flat, utbms</span></li>
-                <li class="py-2.5 flex justify-between gap-3 text-sm" style="border-color: rgb(var(--border-soft));"><span class="font-mono" style="color: rgb(var(--accent));">clio-billing</span><span style="color: rgb(var(--fg-muted));">bills, AR, payments</span></li>
-                <li class="py-2.5 flex justify-between gap-3 text-sm" style="border-color: rgb(var(--border-soft));"><span class="font-mono" style="color: rgb(var(--accent));">clio-document-automation</span><span style="color: rgb(var(--fg-muted));">templates &amp; downloads</span></li>
-                <li class="py-2.5 flex justify-between gap-3 text-sm" style="border-color: rgb(var(--border-soft));"><span class="font-mono" style="color: rgb(var(--accent));">clio-calendar</span><span style="color: rgb(var(--fg-muted));">events &amp; court rules</span></li>
-                <li class="py-2.5 flex justify-between gap-3 text-sm" style="border-color: rgb(var(--border-soft));"><span class="font-mono" style="color: rgb(var(--accent));">clio-contacts</span><span style="color: rgb(var(--fg-muted));">dedupe &amp; link</span></li>
-                <li class="py-2.5 flex justify-between gap-3 text-sm" style="border-color: rgb(var(--border-soft));"><span class="font-mono" style="color: rgb(var(--accent));">clio-trust-accounting</span><span style="color: rgb(var(--fg-muted));">IOLTA &amp; 3-way recon</span></li>
+              <ul class="mt-6 space-y-3 text-sm">
+                <li class="flex items-start gap-2.5"><span style="color: rgb(var(--accent));" aria-hidden="true">&rarr;</span> <span style="color: rgb(var(--fg-muted));">Composite intake from one sentence</span></li>
+                <li class="flex items-start gap-2.5"><span style="color: rgb(var(--accent));" aria-hidden="true">&rarr;</span> <span style="color: rgb(var(--fg-muted));">Aggregate hours, AR, and billing on the fly</span></li>
+                <li class="flex items-start gap-2.5"><span style="color: rgb(var(--accent));" aria-hidden="true">&rarr;</span> <span style="color: rgb(var(--fg-muted));">Write-backs confirmed and audited</span></li>
               </ul>
             </div>
 
-            <div class="space-y-5">
-              <div class="card p-6">
-                <div class="flex items-baseline justify-between">
-                  <h3 class="font-semibold text-lg">Agents</h3>
-                  <span class="text-xs font-mono" style="color: rgb(var(--fg-faint));">autonomous</span>
-                </div>
-                <div class="mt-5 space-y-5">
-                  <div class="pb-5" style="border-bottom: 1px solid rgb(var(--border-soft));">
-                    <div class="flex items-baseline justify-between gap-3">
-                      <span class="font-mono text-sm" style="color: rgb(var(--accent));">clio-intake-agent</span>
-                      <span class="text-[0.65rem] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style="background: rgb(244 63 94 / 0.1); color: rgb(244 63 94);">mutating</span>
-                    </div>
-                    <p class="mt-2 text-sm" style="color: rgb(var(--fg-muted));">
-                      Composite intake from a single prompt. Duplicate
-                      detection, practice-area lookup, confirmation gate,
-                      partial-success handling.
-                    </p>
-                  </div>
-                  <div>
-                    <div class="flex items-baseline justify-between gap-3">
-                      <span class="font-mono text-sm" style="color: rgb(var(--accent));">clio-data-analyst</span>
-                      <span class="text-[0.65rem] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded" style="background: rgb(var(--success) / 0.1); color: rgb(var(--success));">read-only</span>
-                    </div>
-                    <p class="mt-2 text-sm" style="color: rgb(var(--fg-muted));">
-                      AR aging, stale matters, hours by attorney, billing
-                      rollups. Tool allowlist in frontmatter enforces
-                      read-only structurally — not merely by prose.
-                    </p>
+            <div class="reveal">
+              <div class="card overflow-hidden shadow-lifted" id="terminal">
+                <div class="win-bar">
+                  <span class="win-dot" style="background:#ef4444;"></span>
+                  <span class="win-dot" style="background:#f59e0b;"></span>
+                  <span class="win-dot" style="background:#22c55e;"></span>
+                  <span class="ml-2 text-xs font-mono" style="color: rgb(var(--fg-faint));">claude — clio-manage · live demo</span>
+                  <div class="term-tabs ml-auto" role="tablist" aria-label="Demo prompts">
+                    <button class="term-tab" type="button" data-tab="0" role="tab" aria-label="Demo 1"></button>
+                    <button class="term-tab" type="button" data-tab="1" role="tab" aria-label="Demo 2"></button>
+                    <button class="term-tab" type="button" data-tab="2" role="tab" aria-label="Demo 3"></button>
+                    <button class="term-tab" type="button" data-tab="3" role="tab" aria-label="Demo 4"></button>
                   </div>
                 </div>
-              </div>
-
-              <div class="card p-6">
-                <div class="text-xs font-mono uppercase tracking-wider mb-2" style="color: rgb(var(--fg-faint));">A representative prompt</div>
-                <p class="italic text-base leading-snug font-medium">
-                  "Show me how much each attorney billed last month, broken
-                  down by practice area."
-                </p>
-                <p class="mt-3 text-sm" style="color: rgb(var(--fg-muted));">
-                  The analyst agent fans across
-                  <code class="font-mono text-xs">clio_list_activities</code>,
-                  <code class="font-mono text-xs">clio_list_users</code>, and
-                  <code class="font-mono text-xs">clio_list_practice_areas</code>,
-                  aggregates the result, and prints a table.
-                </p>
+                <div class="grid sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x" style="border-color: rgb(var(--border));">
+                  <div class="p-5 sm:p-6" style="border-color: rgb(var(--border));">
+                    <div class="term-prompt" id="termPrompt" aria-live="polite"></div>
+                  </div>
+                  <div class="p-5 sm:p-6">
+                    <div class="term-out" id="termOut"></div>
+                    <div class="term-result" id="termResult"></div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1016,294 +1090,427 @@ npm run smoke:stdio
 
       <!-- =============== Tool catalog =============== -->
       <section id="tools" class="relative" style="border-top: 1px solid rgb(var(--border));">
-        <div class="max-w-6xl mx-auto px-5 sm:px-8 py-20 sm:py-24">
+        <div class="max-w-6xl mx-auto px-5 sm:px-8 py-20 sm:py-28">
           <div class="reveal flex flex-wrap items-end justify-between gap-6 max-w-4xl">
             <div>
               <div class="section-eyebrow">Tool catalog</div>
-              <h2 class="mt-3 text-3xl sm:text-4xl font-semibold tracking-tight leading-tight">
-                Forty-one tools, twelve domains.
+              <h2 class="mt-3 text-3xl sm:text-5xl h-display">
+                40+ tools across 11 domains.
               </h2>
             </div>
             <p class="text-base max-w-md" style="color: rgb(var(--fg-muted));">
-              Each one is Zod-validated, audit-logged, and reachable through
-              both transports.
+              Grouped by what they touch in Clio — each with an example of how you'd ask for it.
+              Every call is validated and audit-logged.
             </p>
           </div>
 
           <div class="mt-8 max-w-md tool-search reveal" id="toolSearch">
             <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3-3"/></svg>
-            <input type="search" placeholder="Filter 41 tools by name or domain — try 'matter' or 'auth'" aria-label="Filter tools" id="toolFilter" />
+            <input type="search" placeholder="Filter by domain or tool — try 'matter' or 'time'" aria-label="Filter tools" id="toolFilter" />
             <button type="button" class="clear" id="toolClear" aria-label="Clear search">clear</button>
           </div>
 
-          <div class="mt-6 grid sm:grid-cols-2 lg:grid-cols-3 gap-4 reveal" id="toolGrid">
-            <div class="card card-hover p-5" data-tool data-domain="auth" data-tools="clio_authenticate clio_auth_status clio_who_am_i clio_logout">
+          <div class="mt-6 grid sm:grid-cols-2 lg:grid-cols-3 gap-4" id="toolGrid">
+            <!-- Matters -->
+            <article class="card card-hover p-5 reveal" data-tool data-domain="matters" data-tools="clio_list_matters clio_get_matter clio_create_matter clio_update_matter clio_list_matter_contacts">
               <div class="flex items-baseline justify-between">
-                <h3 class="font-semibold">Auth</h3>
-                <span class="text-xs font-mono" style="color: rgb(var(--fg-faint));">4</span>
+                <h3 class="font-semibold flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full" style="background: rgb(var(--accent));" aria-hidden="true"></span>Matters</h3>
+                <span class="text-xs font-mono" style="color: rgb(var(--fg-faint));">5</span>
               </div>
-              <ul class="mt-3 text-xs font-mono space-y-1" style="color: rgb(var(--fg-muted));">
-                <li>clio_authenticate</li>
-                <li>clio_auth_status</li>
-                <li>clio_who_am_i</li>
-                <li>clio_logout</li>
-              </ul>
-            </div>
-            <div class="card card-hover p-5" data-tool data-domain="matters" data-tools="clio_list_matters clio_get_matter clio_create_matter clio_update_matter clio_delete_matter clio_list_matter_contacts">
-              <div class="flex items-baseline justify-between">
-                <h3 class="font-semibold">Matters</h3>
-                <span class="text-xs font-mono" style="color: rgb(var(--fg-faint));">6</span>
-              </div>
+              <p class="mt-2 text-xs italic" style="color: rgb(var(--fg-muted));">&ldquo;Show me open matters for Acme Corp.&rdquo;</p>
               <ul class="mt-3 text-xs font-mono space-y-1" style="color: rgb(var(--fg-muted));">
                 <li>clio_list_matters</li>
                 <li>clio_get_matter</li>
                 <li>clio_create_matter</li>
                 <li>clio_update_matter</li>
-                <li>clio_delete_matter</li>
                 <li>clio_list_matter_contacts</li>
               </ul>
-            </div>
-            <div class="card card-hover p-5" data-tool data-domain="contacts" data-tools="clio_search_contacts clio_get_contact clio_create_person_contact clio_create_company_contact clio_update_contact clio_delete_contact">
+            </article>
+
+            <!-- Contacts -->
+            <article class="card card-hover p-5 reveal" data-tool data-domain="contacts" data-tools="clio_search_contacts clio_get_contact clio_create_person_contact clio_create_company_contact clio_update_contact">
               <div class="flex items-baseline justify-between">
-                <h3 class="font-semibold">Contacts</h3>
-                <span class="text-xs font-mono" style="color: rgb(var(--fg-faint));">6</span>
+                <h3 class="font-semibold flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full" style="background: rgb(var(--accent));" aria-hidden="true"></span>Contacts</h3>
+                <span class="text-xs font-mono" style="color: rgb(var(--fg-faint));">5</span>
               </div>
+              <p class="mt-2 text-xs italic" style="color: rgb(var(--fg-muted));">&ldquo;Add Jane Smith as a new client contact.&rdquo;</p>
               <ul class="mt-3 text-xs font-mono space-y-1" style="color: rgb(var(--fg-muted));">
                 <li>clio_search_contacts</li>
                 <li>clio_get_contact</li>
                 <li>clio_create_person_contact</li>
                 <li>clio_create_company_contact</li>
                 <li>clio_update_contact</li>
-                <li>clio_delete_contact</li>
               </ul>
-            </div>
-            <div class="card card-hover p-5" data-tool data-domain="activities time" data-tools="clio_list_activities clio_get_activity clio_create_time_entry clio_create_expense_entry">
+            </article>
+
+            <!-- Time & Activities -->
+            <article class="card card-hover p-5 reveal" data-tool data-domain="activities time billing" data-tools="clio_list_activities clio_get_activity clio_create_time_entry clio_create_expense_entry">
               <div class="flex items-baseline justify-between">
-                <h3 class="font-semibold">Activities</h3>
+                <h3 class="font-semibold flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full" style="background: rgb(var(--accent));" aria-hidden="true"></span>Time &amp; Activities</h3>
                 <span class="text-xs font-mono" style="color: rgb(var(--fg-faint));">4</span>
               </div>
+              <p class="mt-2 text-xs italic" style="color: rgb(var(--fg-muted));">&ldquo;Log 1.5 hours to matter 4821.&rdquo;</p>
               <ul class="mt-3 text-xs font-mono space-y-1" style="color: rgb(var(--fg-muted));">
                 <li>clio_list_activities</li>
                 <li>clio_get_activity</li>
                 <li>clio_create_time_entry</li>
                 <li>clio_create_expense_entry</li>
               </ul>
-            </div>
-            <div class="card card-hover p-5" data-tool data-domain="tasks" data-tools="clio_list_tasks clio_get_task clio_create_task clio_update_task">
+            </article>
+
+            <!-- Tasks -->
+            <article class="card card-hover p-5 reveal" data-tool data-domain="tasks" data-tools="clio_list_tasks clio_get_task clio_create_task clio_update_task">
               <div class="flex items-baseline justify-between">
-                <h3 class="font-semibold">Tasks</h3>
+                <h3 class="font-semibold flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full" style="background: rgb(var(--accent));" aria-hidden="true"></span>Tasks</h3>
                 <span class="text-xs font-mono" style="color: rgb(var(--fg-faint));">4</span>
               </div>
+              <p class="mt-2 text-xs italic" style="color: rgb(var(--fg-muted));">&ldquo;Draft an intake task due Friday.&rdquo;</p>
               <ul class="mt-3 text-xs font-mono space-y-1" style="color: rgb(var(--fg-muted));">
                 <li>clio_list_tasks</li>
                 <li>clio_get_task</li>
                 <li>clio_create_task</li>
                 <li>clio_update_task</li>
               </ul>
-            </div>
-            <div class="card card-hover p-5" data-tool data-domain="notes" data-tools="clio_list_notes clio_create_note">
+            </article>
+
+            <!-- Notes -->
+            <article class="card card-hover p-5 reveal" data-tool data-domain="notes" data-tools="clio_list_notes clio_create_note">
               <div class="flex items-baseline justify-between">
-                <h3 class="font-semibold">Notes</h3>
+                <h3 class="font-semibold flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full" style="background: rgb(var(--accent));" aria-hidden="true"></span>Notes</h3>
                 <span class="text-xs font-mono" style="color: rgb(var(--fg-faint));">2</span>
               </div>
+              <p class="mt-2 text-xs italic" style="color: rgb(var(--fg-muted));">&ldquo;Note that today's call confirmed the retainer.&rdquo;</p>
               <ul class="mt-3 text-xs font-mono space-y-1" style="color: rgb(var(--fg-muted));">
                 <li>clio_list_notes</li>
                 <li>clio_create_note</li>
               </ul>
-            </div>
-            <div class="card card-hover p-5" data-tool data-domain="calendar" data-tools="clio_list_calendars clio_list_calendar_entries clio_create_calendar_entry">
+            </article>
+
+            <!-- Calendar -->
+            <article class="card card-hover p-5 reveal" data-tool data-domain="calendar events" data-tools="clio_list_calendars clio_list_calendar_entries clio_create_calendar_entry">
               <div class="flex items-baseline justify-between">
-                <h3 class="font-semibold">Calendar</h3>
+                <h3 class="font-semibold flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full" style="background: rgb(var(--accent));" aria-hidden="true"></span>Calendar</h3>
                 <span class="text-xs font-mono" style="color: rgb(var(--fg-faint));">3</span>
               </div>
+              <p class="mt-2 text-xs italic" style="color: rgb(var(--fg-muted));">&ldquo;Put the deposition on my calendar next Tuesday.&rdquo;</p>
               <ul class="mt-3 text-xs font-mono space-y-1" style="color: rgb(var(--fg-muted));">
                 <li>clio_list_calendars</li>
                 <li>clio_list_calendar_entries</li>
                 <li>clio_create_calendar_entry</li>
               </ul>
-            </div>
-            <div class="card card-hover p-5" data-tool data-domain="documents docs" data-tools="clio_list_documents clio_get_document clio_get_document_download_url clio_list_folders">
+            </article>
+
+            <!-- Documents -->
+            <article class="card card-hover p-5 reveal" data-tool data-domain="documents docs files folders" data-tools="clio_list_documents clio_get_document clio_get_document_download_url clio_list_folders">
               <div class="flex items-baseline justify-between">
-                <h3 class="font-semibold">Documents</h3>
+                <h3 class="font-semibold flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full" style="background: rgb(var(--accent));" aria-hidden="true"></span>Documents</h3>
                 <span class="text-xs font-mono" style="color: rgb(var(--fg-faint));">4</span>
               </div>
+              <p class="mt-2 text-xs italic" style="color: rgb(var(--fg-muted));">&ldquo;Find the engagement letter for this matter.&rdquo;</p>
               <ul class="mt-3 text-xs font-mono space-y-1" style="color: rgb(var(--fg-muted));">
                 <li>clio_list_documents</li>
                 <li>clio_get_document</li>
                 <li>clio_get_document_download_url</li>
                 <li>clio_list_folders</li>
               </ul>
-            </div>
-            <div class="card card-hover p-5" data-tool data-domain="bills billing" data-tools="clio_list_bills clio_get_bill clio_get_billing_summary">
+            </article>
+
+            <!-- Bills -->
+            <article class="card card-hover p-5 reveal" data-tool data-domain="bills billing invoices ar" data-tools="clio_list_bills clio_get_bill clio_get_billing_summary">
               <div class="flex items-baseline justify-between">
-                <h3 class="font-semibold">Bills</h3>
+                <h3 class="font-semibold flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full" style="background: rgb(var(--accent));" aria-hidden="true"></span>Bills</h3>
                 <span class="text-xs font-mono" style="color: rgb(var(--fg-faint));">3</span>
               </div>
+              <p class="mt-2 text-xs italic" style="color: rgb(var(--fg-muted));">&ldquo;Which bills are over 60 days past due?&rdquo;</p>
               <ul class="mt-3 text-xs font-mono space-y-1" style="color: rgb(var(--fg-muted));">
                 <li>clio_list_bills</li>
                 <li>clio_get_bill</li>
                 <li>clio_get_billing_summary</li>
               </ul>
-            </div>
-            <div class="card card-hover p-5" data-tool data-domain="users" data-tools="clio_list_users clio_get_user">
+            </article>
+
+            <!-- Users -->
+            <article class="card card-hover p-5 reveal" data-tool data-domain="users team attorneys" data-tools="clio_list_users clio_get_user clio_who_am_i">
               <div class="flex items-baseline justify-between">
-                <h3 class="font-semibold">Users</h3>
-                <span class="text-xs font-mono" style="color: rgb(var(--fg-faint));">2</span>
+                <h3 class="font-semibold flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full" style="background: rgb(var(--accent));" aria-hidden="true"></span>Users</h3>
+                <span class="text-xs font-mono" style="color: rgb(var(--fg-faint));">3</span>
               </div>
+              <p class="mt-2 text-xs italic" style="color: rgb(var(--fg-muted));">&ldquo;Who's the responsible attorney here?&rdquo;</p>
               <ul class="mt-3 text-xs font-mono space-y-1" style="color: rgb(var(--fg-muted));">
                 <li>clio_list_users</li>
                 <li>clio_get_user</li>
+                <li>clio_who_am_i</li>
               </ul>
-            </div>
-            <div class="card card-hover p-5" data-tool data-domain="practice-areas" data-tools="clio_list_practice_areas">
+            </article>
+
+            <!-- Practice areas -->
+            <article class="card card-hover p-5 reveal" data-tool data-domain="practice-areas practice areas" data-tools="clio_list_practice_areas">
               <div class="flex items-baseline justify-between">
-                <h3 class="font-semibold">Practice areas</h3>
+                <h3 class="font-semibold flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full" style="background: rgb(var(--accent));" aria-hidden="true"></span>Practice areas</h3>
                 <span class="text-xs font-mono" style="color: rgb(var(--fg-faint));">1</span>
               </div>
+              <p class="mt-2 text-xs italic" style="color: rgb(var(--fg-muted));">&ldquo;List our practice areas for intake.&rdquo;</p>
               <ul class="mt-3 text-xs font-mono space-y-1" style="color: rgb(var(--fg-muted));">
                 <li>clio_list_practice_areas</li>
               </ul>
-            </div>
-            <div class="card card-hover p-5" data-tool data-domain="composite workflow intake" data-tools="clio_open_new_matter clio_api_request" style="background: rgb(var(--accent) / 0.04); border-color: rgb(var(--accent) / 0.3);">
+            </article>
+
+            <!-- Auth -->
+            <article class="card card-hover p-5 reveal" data-tool data-domain="auth oauth identity session" data-tools="clio_authenticate clio_auth_status clio_who_am_i clio_logout">
               <div class="flex items-baseline justify-between">
-                <h3 class="font-semibold">Composite</h3>
+                <h3 class="font-semibold flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full" style="background: rgb(var(--accent));" aria-hidden="true"></span>Auth &amp; session</h3>
+                <span class="text-xs font-mono" style="color: rgb(var(--fg-faint));">4</span>
+              </div>
+              <p class="mt-2 text-xs italic" style="color: rgb(var(--fg-muted));">&ldquo;Am I still signed in to Clio?&rdquo;</p>
+              <ul class="mt-3 text-xs font-mono space-y-1" style="color: rgb(var(--fg-muted));">
+                <li>clio_authenticate</li>
+                <li>clio_auth_status</li>
+                <li>clio_who_am_i</li>
+                <li>clio_logout</li>
+              </ul>
+            </article>
+
+            <!-- Workflows / composite -->
+            <article class="card card-hover p-5 reveal" data-tool data-domain="composite workflow intake escape generic api" data-tools="clio_open_new_matter clio_api_request" style="background: rgb(var(--accent) / 0.04); border-color: rgb(var(--accent) / 0.3);">
+              <div class="flex items-baseline justify-between">
+                <h3 class="font-semibold flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full" style="background: rgb(var(--accent));" aria-hidden="true"></span>Workflows</h3>
                 <span class="text-xs font-mono" style="color: rgb(var(--accent));">2</span>
               </div>
+              <p class="mt-2 text-xs italic" style="color: rgb(var(--fg-muted));">&ldquo;Open a new matter for Jane Smith — flat fee $2,500.&rdquo;</p>
               <ul class="mt-3 text-xs font-mono space-y-1" style="color: rgb(var(--accent));">
                 <li>clio_open_new_matter</li>
                 <li>clio_api_request</li>
               </ul>
               <p class="mt-3 text-xs" style="color: rgb(var(--fg-muted));">
-                One workflow that chains a five-step intake.
-                One generic escape hatch.
+                A composite intake flow, plus a generic escape hatch to any v4 endpoint.
               </p>
-            </div>
+            </article>
           </div>
+
           <div class="tool-empty reveal" id="toolEmpty">
             No tools match. Try <button type="button" class="link-u" style="color: rgb(var(--accent));" id="toolEmptyClear">clearing the filter</button>.
           </div>
-        </div>
-      </section>
-
-      <!-- =============== Optional connectors =============== -->
-      <section id="connectors" class="relative" style="border-top: 1px solid rgb(var(--border)); background: rgb(var(--bg-soft));">
-        <div class="max-w-6xl mx-auto px-5 sm:px-8 py-20 sm:py-24">
-          <div class="reveal max-w-2xl">
-            <div class="section-eyebrow">Optional</div>
-            <h2 class="mt-3 text-3xl sm:text-4xl font-semibold tracking-tight leading-tight">
-              Clio is required.<br/>Everything else is opt-in.
-            </h2>
-            <p class="mt-4 text-lg" style="color: rgb(var(--fg-muted));">
-              Skills surface what they need; if a connector isn't installed,
-              they degrade gracefully and say so.
-            </p>
-          </div>
-
-          <div class="mt-12 grid sm:grid-cols-2 lg:grid-cols-4 gap-3 reveal">
-            <div class="card card-hover p-5" style="border-color: rgb(var(--accent) / 0.4); background: rgb(var(--accent) / 0.04);">
-              <div class="text-[0.65rem] font-mono uppercase tracking-wider" style="color: rgb(var(--accent));">Required</div>
-              <h3 class="mt-1.5 font-semibold">Clio Manage</h3>
-              <p class="mt-1.5 text-sm" style="color: rgb(var(--fg-muted));">This MCP.</p>
-            </div>
-            <div class="card card-hover p-5">
-              <div class="text-[0.65rem] font-mono uppercase tracking-wider" style="color: rgb(var(--success));">Recommended</div>
-              <h3 class="mt-1.5 font-semibold">Microsoft 365</h3>
-              <p class="mt-1.5 text-sm" style="color: rgb(var(--fg-muted));">Outlook, Calendar, SharePoint, Teams.</p>
-            </div>
-            <div class="card card-hover p-5">
-              <div class="text-[0.65rem] font-mono uppercase tracking-wider" style="color: rgb(var(--success));">Recommended</div>
-              <h3 class="mt-1.5 font-semibold">Google Workspace</h3>
-              <p class="mt-1.5 text-sm" style="color: rgb(var(--fg-muted));">Gmail, Calendar, Drive, Docs.</p>
-            </div>
-            <div class="card card-hover p-5">
-              <div class="text-[0.65rem] font-mono uppercase tracking-wider" style="color: rgb(245 158 11);">Useful</div>
-              <h3 class="mt-1.5 font-semibold">DocuSign</h3>
-              <p class="mt-1.5 text-sm" style="color: rgb(var(--fg-muted));">eSignature for engagement letters.</p>
-            </div>
-            <div class="card card-hover p-5">
-              <div class="text-[0.65rem] font-mono uppercase tracking-wider" style="color: rgb(245 158 11);">Useful</div>
-              <h3 class="mt-1.5 font-semibold">Stripe</h3>
-              <p class="mt-1.5 text-sm" style="color: rgb(var(--fg-muted));">Payments &amp; reconciliation.</p>
-            </div>
-            <div class="card card-hover p-5">
-              <div class="text-[0.65rem] font-mono uppercase tracking-wider" style="color: rgb(245 158 11);">Useful</div>
-              <h3 class="mt-1.5 font-semibold">Slack &amp; Teams</h3>
-              <p class="mt-1.5 text-sm" style="color: rgb(var(--fg-muted));">Internal firm communications.</p>
-            </div>
-            <div class="card card-hover p-5">
-              <div class="text-[0.65rem] font-mono uppercase tracking-wider" style="color: rgb(var(--fg-muted));">Ops</div>
-              <h3 class="mt-1.5 font-semibold">Sentry &amp; App Insights</h3>
-              <p class="mt-1.5 text-sm" style="color: rgb(var(--fg-muted));">Monitor the MCP server.</p>
-            </div>
-            <div class="card card-hover p-5">
-              <div class="text-[0.65rem] font-mono uppercase tracking-wider" style="color: rgb(var(--fg-muted));">Roadmap</div>
-              <h3 class="mt-1.5 font-semibold">Court systems</h3>
-              <p class="mt-1.5 text-sm" style="color: rgb(var(--fg-muted));">Westlaw, PACER, state e-filing.</p>
-            </div>
-          </div>
 
           <p class="mt-8 text-sm reveal" style="color: rgb(var(--fg-muted));">
-            Full setup steps:
-            <a href="connectors.md" class="link-u font-medium" style="color: rgb(var(--accent));">docs/connectors.md →</a>
+            Press <kbd class="font-mono text-xs px-1.5 py-0.5 rounded" style="background: rgb(var(--bg-soft)); border:1px solid rgb(var(--border));">/</kbd> to focus the filter.
+            Full list lives in the
+            <a href="https://github.com/patrickking67/clio-manage-mcp" class="link-u font-medium" style="color: rgb(var(--accent));" rel="noopener">repository &rarr;</a>
           </p>
         </div>
       </section>
 
-      <!-- =============== Security =============== -->
+      <!-- =============== Deploy =============== -->
+      <section id="deploy" class="relative" style="border-top: 1px solid rgb(var(--border)); background: rgb(var(--bg-soft));">
+        <div class="max-w-6xl mx-auto px-5 sm:px-8 py-20 sm:py-28">
+          <div class="reveal max-w-2xl">
+            <div class="section-eyebrow">Deploy</div>
+            <h2 class="mt-3 text-3xl sm:text-5xl h-display">
+              Two ways to run it.
+            </h2>
+            <p class="mt-5 text-lg leading-relaxed" style="color: rgb(var(--fg-muted));">
+              Host it on Azure for the whole firm as a remote connector, or run it locally over
+              stdio for solo and dev use. Same binary, two transports.
+            </p>
+          </div>
+
+          <!-- tabs -->
+          <div class="mt-10 reveal">
+            <div class="inline-flex p-1 rounded-xl" role="tablist" aria-label="Deployment method" style="background: rgb(var(--bg-soft)); border: 1px solid rgb(var(--border));">
+              <button class="tab-btn" type="button" id="tab-azure" role="tab" aria-selected="true" aria-controls="panel-azure">
+                <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14a4 4 0 0 1 .9-7.9 5.5 5.5 0 0 1 10.6-1.4A4.5 4.5 0 0 1 18 14H4z"/></svg>
+                Azure
+                <span class="text-[0.6rem] font-mono px-1.5 py-0.5 rounded-full" style="background: rgb(var(--accent) / 0.15); color: rgb(var(--accent));">remote</span>
+              </button>
+              <button class="tab-btn" type="button" id="tab-local" role="tab" aria-selected="false" aria-controls="panel-local">
+                <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 20h8M12 17v3"/></svg>
+                Local
+                <span class="text-[0.6rem] font-mono px-1.5 py-0.5 rounded-full" style="background: rgb(var(--bg-elev)); border: 1px solid rgb(var(--border)); color: rgb(var(--fg-muted));">stdio</span>
+              </button>
+            </div>
+
+            <!-- Azure panel -->
+            <div id="panel-azure" class="tab-panel mt-6" role="tabpanel" aria-labelledby="tab-azure" tabindex="0">
+              <div class="grid lg:grid-cols-[1.1fr,0.9fr] gap-5">
+                <div class="card p-6">
+                  <div class="flex flex-wrap items-baseline justify-between gap-2">
+                    <h3 class="font-semibold">Provision &amp; deploy</h3>
+                    <span class="text-xs font-mono" style="color: rgb(var(--fg-faint));">Container Apps · Key Vault · MI</span>
+                  </div>
+                  <p class="mt-2 text-sm" style="color: rgb(var(--fg-muted));">
+                    With the Azure Developer CLI installed, one command builds the image, provisions
+                    infrastructure, and deploys the HTTPS endpoint.
+                  </p>
+                  <div class="code mt-4">
+                    <button class="copy" type="button" data-copy aria-label="Copy commands">copy</button>
+                    <pre><code>az login
+azd auth login
+
+<span class="muted"># choose your environment + Clio region</span>
+azd env new clio-mcp-prod
+azd env set CLIO_REGION us      <span class="muted"># us | ca | eu | au</span>
+
+<span class="muted"># build image, provision, deploy</span>
+azd up</code></pre>
+                  </div>
+                  <p class="mt-3 text-sm" style="color: rgb(var(--fg-muted));">
+                    Outputs your connector URL:
+                    <span class="font-mono text-xs" style="color: rgb(var(--accent));">https://&lt;your-app&gt;.azurecontainerapps.io/mcp</span>
+                  </p>
+                  <div class="code mt-3">
+                    <button class="copy" type="button" data-copy aria-label="Copy health check">copy</button>
+                    <pre><code><span class="muted"># verify it's live</span>
+curl -sS https://&lt;your-app&gt;/healthz
+<span class="ok"># {"status":"ok","server":"clio-mcp","region":"us"}</span></code></pre>
+                  </div>
+                </div>
+
+                <div class="space-y-5">
+                  <div class="card p-6">
+                    <div class="text-xs font-mono uppercase tracking-wider" style="color: rgb(var(--fg-faint));">What gets provisioned</div>
+                    <ul class="mt-3 space-y-2 text-sm" style="color: rgb(var(--fg-muted));">
+                      <li class="flex items-baseline gap-2"><span style="color: rgb(var(--accent));" aria-hidden="true">&rarr;</span> Azure Container Apps (HTTPS, autoscale 1&rarr;4)</li>
+                      <li class="flex items-baseline gap-2"><span style="color: rgb(var(--accent));" aria-hidden="true">&rarr;</span> Key Vault (RBAC, soft-delete on)</li>
+                      <li class="flex items-baseline gap-2"><span style="color: rgb(var(--accent));" aria-hidden="true">&rarr;</span> User-assigned managed identity</li>
+                      <li class="flex items-baseline gap-2"><span style="color: rgb(var(--accent));" aria-hidden="true">&rarr;</span> Container Registry + App Insights</li>
+                      <li class="flex items-baseline gap-2"><span style="color: rgb(var(--accent));" aria-hidden="true">&rarr;</span> Azure Files for encrypted state &amp; audit log</li>
+                    </ul>
+                  </div>
+                  <div class="card p-6">
+                    <div class="flex items-baseline justify-between">
+                      <div class="text-xs font-mono uppercase tracking-wider" style="color: rgb(var(--fg-faint));">Approx. cost</div>
+                      <div class="text-xs font-mono" style="color: rgb(var(--success));">1 warm replica</div>
+                    </div>
+                    <div class="mt-2 text-2xl font-semibold">~$25&ndash;30<span class="text-base font-normal" style="color: rgb(var(--fg-muted));">/mo</span></div>
+                    <p class="mt-2 text-xs" style="color: rgb(var(--fg-muted));">
+                      Scale-to-zero supported to cut cost ~80% (cold starts ~3&ndash;5s).
+                      Full walkthrough in
+                      <a href="deployment-azure.md" class="link-u font-medium" style="color: rgb(var(--accent));">deployment-azure.md</a>.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Local panel -->
+            <div id="panel-local" class="tab-panel mt-6" role="tabpanel" aria-labelledby="tab-local" tabindex="0" hidden>
+              <div class="grid lg:grid-cols-[1.1fr,0.9fr] gap-5">
+                <div class="card p-6">
+                  <div class="flex flex-wrap items-baseline justify-between gap-2">
+                    <h3 class="font-semibold">Clone, build &amp; run</h3>
+                    <span class="text-xs font-mono" style="color: rgb(var(--fg-faint));">stdio · Node 20+</span>
+                  </div>
+                  <p class="mt-2 text-sm" style="color: rgb(var(--fg-muted));">
+                    For solo or dev use. Build once, wire it into Claude Code or Claude Desktop,
+                    and authenticate in your browser.
+                  </p>
+                  <div class="code mt-4">
+                    <button class="copy" type="button" data-copy aria-label="Copy commands">copy</button>
+                    <pre><code>git clone https://github.com/patrickking67/<wbr>clio-manage-mcp
+cd clio-manage-mcp
+npm install
+npm run build
+
+<span class="muted"># run over stdio</span>
+npm run start:stdio</code></pre>
+                  </div>
+                  <p class="mt-3 text-sm" style="color: rgb(var(--fg-muted));">
+                    Then in a new chat say <span class="font-mono text-xs" style="color: rgb(var(--accent));">authenticate with Clio</span> —
+                    a browser opens to Clio, you sign in once, and the token is encrypted to disk.
+                  </p>
+                </div>
+
+                <div class="card p-6">
+                  <div class="flex flex-wrap items-baseline justify-between gap-2">
+                    <h3 class="font-semibold">Wire into Claude Code</h3>
+                    <span class="text-xs font-mono" style="color: rgb(var(--fg-faint));">~/.claude/settings.json</span>
+                  </div>
+                  <div class="code mt-4">
+                    <button class="copy" type="button" data-copy aria-label="Copy config">copy</button>
+                    <pre><code>{
+  <span class="acc">"mcpServers"</span>: {
+    <span class="acc">"clio"</span>: {
+      <span class="acc">"command"</span>: <span class="str">"node"</span>,
+      <span class="acc">"args"</span>: [<span class="str">"/path/to/clio-manage-mcp/build/index.js"</span>, <span class="str">"--stdio"</span>],
+      <span class="acc">"env"</span>: { <span class="acc">"CLIO_REGION"</span>: <span class="str">"us"</span> }
+    }
+  }
+}</code></pre>
+                  </div>
+                  <p class="mt-3 text-xs" style="color: rgb(var(--fg-muted));">
+                    Full steps &amp; Claude Desktop config in
+                    <a href="deployment-local.md" class="link-u font-medium" style="color: rgb(var(--accent));">deployment-local.md</a>
+                    and
+                    <a href="oauth-setup.md" class="link-u font-medium" style="color: rgb(var(--accent));">oauth-setup.md</a>.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =============== Security & trust =============== -->
       <section id="security" class="relative" style="border-top: 1px solid rgb(var(--border));">
-        <div class="max-w-6xl mx-auto px-5 sm:px-8 py-20 sm:py-24">
-          <div class="grid lg:grid-cols-[1fr,1.4fr] gap-12">
+        <div class="max-w-6xl mx-auto px-5 sm:px-8 py-20 sm:py-28">
+          <div class="grid lg:grid-cols-[1fr,1.45fr] gap-12">
             <div class="reveal">
-              <div class="section-eyebrow">Security</div>
-              <h2 class="mt-3 text-3xl sm:text-4xl font-semibold tracking-tight leading-tight">
-                Designed for a law firm.
+              <div class="section-eyebrow">Security &amp; trust</div>
+              <h2 class="mt-3 text-3xl sm:text-4xl h-display">
+                Confidentiality is the default.
               </h2>
-              <p class="mt-4 text-lg" style="color: rgb(var(--fg-muted));">
-                Tokens never touch chat. The audit trail holds up under ABA
-                Op 512 scrutiny. Confidentiality is the default — not a
-                setting.
+              <p class="mt-5 text-lg leading-relaxed" style="color: rgb(var(--fg-muted));">
+                Tokens never touch a chat window. The audit trail is designed to hold up under
+                ABA Formal Opinion 512. Open source under MIT — read every line.
               </p>
-              <a href="security.md" class="mt-6 btn btn-secondary inline-flex">
-                Read the security doc
-                <svg viewBox="0 0 20 20" class="w-4 h-4 fill-current"><path d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"/></svg>
-              </a>
+              <div class="mt-7 flex flex-wrap gap-3">
+                <a href="security.md" class="btn btn-secondary btn-sm">
+                  Read the security doc
+                  <svg viewBox="0 0 20 20" class="w-4 h-4 fill-current" aria-hidden="true"><path d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"/></svg>
+                </a>
+                <a href="https://github.com/patrickking67/clio-manage-mcp" class="btn btn-ghost btn-sm" rel="noopener">MIT licensed source</a>
+              </div>
             </div>
 
             <div class="reveal grid sm:grid-cols-2 gap-4">
               <div class="card p-5">
-                <div class="text-[0.65rem] font-mono uppercase tracking-wider" style="color: rgb(var(--fg-faint));">Token at rest</div>
-                <h3 class="mt-2 font-semibold">AES-256-GCM</h3>
-                <p class="mt-2 text-sm" style="color: rgb(var(--fg-muted));">
-                  12-byte IV plus 16-byte auth tag. Encrypted to
-                  <code class="font-mono text-xs">tokens.json</code> at mode
-                  <code class="font-mono text-xs">0o600</code>.
+                <div class="w-9 h-9 rounded-lg grid place-items-center mb-3" style="background: rgb(25 118 210 / 0.1); color: rgb(var(--accent));">
+                  <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+                </div>
+                <div class="text-[0.65rem] font-mono uppercase tracking-wider" style="color: rgb(var(--fg-faint));">Authorization</div>
+                <h3 class="mt-1 font-semibold">OAuth 2.1 + PKCE</h3>
+                <p class="mt-2 text-sm leading-relaxed" style="color: rgb(var(--fg-muted));">
+                  Per-user Clio sign-in with PKCE. No client secrets or API keys ever pasted into chat.
                 </p>
               </div>
               <div class="card p-5">
-                <div class="text-[0.65rem] font-mono uppercase tracking-wider" style="color: rgb(var(--fg-faint));">Audit log</div>
-                <h3 class="mt-2 font-semibold">Append-only JSONL</h3>
-                <p class="mt-2 text-sm" style="color: rgb(var(--fg-muted));">
-                  Three modes —
-                  <code class="font-mono text-xs">none</code>,
-                  <code class="font-mono text-xs">metadata</code>,
-                  <code class="font-mono text-xs">full</code>.
+                <div class="w-9 h-9 rounded-lg grid place-items-center mb-3" style="background: rgb(34 197 94 / 0.1); color: rgb(var(--success));">
+                  <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 9.5C8 19.3 5 15.5 5 11V6l7-3z"/></svg>
+                </div>
+                <div class="text-[0.65rem] font-mono uppercase tracking-wider" style="color: rgb(var(--fg-faint));">Tokens at rest</div>
+                <h3 class="mt-1 font-semibold">AES-256-GCM</h3>
+                <p class="mt-2 text-sm leading-relaxed" style="color: rgb(var(--fg-muted));">
+                  Encrypted with a 12-byte IV and 16-byte auth tag. Plaintext credentials never hit disk.
                 </p>
               </div>
               <div class="card p-5">
-                <div class="text-[0.65rem] font-mono uppercase tracking-wider" style="color: rgb(var(--fg-faint));">HTTP transport</div>
-                <h3 class="mt-2 font-semibold">Timing-safe bearer</h3>
-                <p class="mt-2 text-sm" style="color: rgb(var(--fg-muted));">
-                  SHA-256 digests via
-                  <code class="font-mono text-xs">timingSafeEqual</code>.
-                  Caller-ID is the first 6 bytes.
+                <div class="w-9 h-9 rounded-lg grid place-items-center mb-3" style="background: rgb(99 102 241 / 0.1); color: rgb(99 102 241);">
+                  <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v6H4zM4 14h10v6H4z"/><path d="M18 14v6M21 17h-6"/></svg>
+                </div>
+                <div class="text-[0.65rem] font-mono uppercase tracking-wider" style="color: rgb(var(--fg-faint));">Accountability</div>
+                <h3 class="mt-1 font-semibold">Audit log · ABA 512</h3>
+                <p class="mt-2 text-sm leading-relaxed" style="color: rgb(var(--fg-muted));">
+                  Append-only JSONL of every call. Three modes &mdash; <code class="font-mono text-xs">none</code>,
+                  <code class="font-mono text-xs">metadata</code>, <code class="font-mono text-xs">full</code>.
                 </p>
               </div>
               <div class="card p-5">
-                <div class="text-[0.65rem] font-mono uppercase tracking-wider" style="color: rgb(var(--fg-faint));">Azure</div>
-                <h3 class="mt-2 font-semibold">Managed identity</h3>
-                <p class="mt-2 text-sm" style="color: rgb(var(--fg-muted));">
-                  Secrets flow from Key Vault to the Container App via MI.
-                  RBAC + soft-delete on by default.
+                <div class="w-9 h-9 rounded-lg grid place-items-center mb-3" style="background: rgb(20 184 166 / 0.1); color: rgb(20 184 166);">
+                  <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14a4 4 0 0 1 .9-7.9 5.5 5.5 0 0 1 10.6-1.4A4.5 4.5 0 0 1 18 14H4z"/><circle cx="12" cy="13" r="2"/></svg>
+                </div>
+                <div class="text-[0.65rem] font-mono uppercase tracking-wider" style="color: rgb(var(--fg-faint));">Cloud posture</div>
+                <h3 class="mt-1 font-semibold">Key Vault + managed identity</h3>
+                <p class="mt-2 text-sm leading-relaxed" style="color: rgb(var(--fg-muted));">
+                  Secrets flow from Key Vault via managed identity. Least-privilege RBAC, no shell secrets.
                 </p>
               </div>
             </div>
@@ -1311,152 +1518,90 @@ npm run smoke:stdio
         </div>
       </section>
 
-      <!-- =============== FAQ =============== -->
-      <section id="faq" class="relative" style="border-top: 1px solid rgb(var(--border)); background: rgb(var(--bg-soft));">
-        <div class="max-w-3xl mx-auto px-5 sm:px-8 py-20 sm:py-24">
-          <div class="reveal text-center">
-            <div class="section-eyebrow">FAQ</div>
-            <h2 class="mt-3 text-3xl sm:text-4xl font-semibold tracking-tight leading-tight">
-              Six common questions.
-            </h2>
-          </div>
-
-          <div class="mt-12 space-y-2 reveal">
-            <details class="card p-5 group">
-              <summary class="cursor-pointer flex items-center justify-between gap-3 list-none">
-                <span class="font-semibold">Is this an official Clio product?</span>
-                <span class="w-6 h-6 grid place-items-center rounded-full text-base transition group-open:rotate-45" style="background: rgb(var(--bg-soft));">+</span>
-              </summary>
-              <p class="mt-4 text-sm leading-relaxed" style="color: rgb(var(--fg-muted));">
-                No. It's an independent open-source integration that uses
-                Clio's public v4 API. Clio doesn't endorse or support it.
-                Bring your own developer app, your own OAuth credentials,
-                and your own deployment.
-              </p>
-            </details>
-            <details class="card p-5 group">
-              <summary class="cursor-pointer flex items-center justify-between gap-3 list-none">
-                <span class="font-semibold">Does my Clio data leave the firm?</span>
-                <span class="w-6 h-6 grid place-items-center rounded-full text-base transition group-open:rotate-45" style="background: rgb(var(--bg-soft));">+</span>
-              </summary>
-              <p class="mt-4 text-sm leading-relaxed" style="color: rgb(var(--fg-muted));">
-                The MCP is a passthrough; it doesn't store Clio data. Calls go
-                Claude → MCP → Clio API and back. The audit log records calls
-                (and optionally args/results per mode) and stays on whatever
-                host runs the MCP. On Azure that's Azure Files inside your
-                tenant.
-              </p>
-            </details>
-            <details class="card p-5 group">
-              <summary class="cursor-pointer flex items-center justify-between gap-3 list-none">
-                <span class="font-semibold">Will it work with the Claude desktop app?</span>
-                <span class="w-6 h-6 grid place-items-center rounded-full text-base transition group-open:rotate-45" style="background: rgb(var(--bg-soft));">+</span>
-              </summary>
-              <p class="mt-4 text-sm leading-relaxed" style="color: rgb(var(--fg-muted));">
-                Yes — the stdio transport works with any MCP client. An
-                example <code class="font-mono">claude_desktop_config.json</code>
-                ships in
-                <a href="https://github.com/patrickking67/clio-manage-mcp/blob/main/examples/claude-desktop.json" class="link-u" style="color: rgb(var(--accent));">examples/</a>.
-                The plugin layer is Claude Code specific.
-              </p>
-            </details>
-            <details class="card p-5 group">
-              <summary class="cursor-pointer flex items-center justify-between gap-3 list-none">
-                <span class="font-semibold">How much does Azure cost?</span>
-                <span class="w-6 h-6 grid place-items-center rounded-full text-base transition group-open:rotate-45" style="background: rgb(var(--bg-soft));">+</span>
-              </summary>
-              <p class="mt-4 text-sm leading-relaxed" style="color: rgb(var(--fg-muted));">
-                About $25–30/month for one warm Container Apps replica plus
-                Log Analytics, App Insights, Key Vault, and ACR Basic.
-                Scale-to-zero is supported if cold-start tradeoffs are
-                acceptable.
-              </p>
-            </details>
-            <details class="card p-5 group">
-              <summary class="cursor-pointer flex items-center justify-between gap-3 list-none">
-                <span class="font-semibold">What about ABA Formal Opinion 512?</span>
-                <span class="w-6 h-6 grid place-items-center rounded-full text-base transition group-open:rotate-45" style="background: rgb(var(--bg-soft));">+</span>
-              </summary>
-              <p class="mt-4 text-sm leading-relaxed" style="color: rgb(var(--fg-muted));">
-                Designed around it. Per-call audit, explicit write
-                confirmations, redaction-aware reads, and the
-                <code class="font-mono">clio-best-practices</code> skill that
-                loads Op 512 into every relevant conversation. None of that
-                replaces a lawyer's judgment — but it removes the most
-                common ways AI accidentally trips the duties of competence
-                and confidentiality.
-              </p>
-            </details>
-            <details class="card p-5 group">
-              <summary class="cursor-pointer flex items-center justify-between gap-3 list-none">
-                <span class="font-semibold">Which Clio region am I in?</span>
-                <span class="w-6 h-6 grid place-items-center rounded-full text-base transition group-open:rotate-45" style="background: rgb(var(--bg-soft));">+</span>
-              </summary>
-              <p class="mt-4 text-sm leading-relaxed" style="color: rgb(var(--fg-muted));">
-                Whichever subdomain you sign in at —
-                <code class="font-mono">app.clio.com</code> (US),
-                <code class="font-mono">ca.app.clio.com</code> (CA),
-                <code class="font-mono">eu.app.clio.com</code> (EU), or
-                <code class="font-mono">au.app.clio.com</code> (AU). Set
-                <code class="font-mono">CLIO_REGION</code> to match. Build
-                the developer app on the matching regional portal.
-              </p>
-            </details>
+      <!-- =============== Closing CTA =============== -->
+      <section class="relative overflow-hidden" style="border-top: 1px solid rgb(var(--border)); background: rgb(var(--bg-soft));">
+        <div aria-hidden="true" class="absolute -bottom-32 left-1/2 -translate-x-1/2 w-[60rem] h-[36rem] blob-1 pointer-events-none"></div>
+        <div class="relative max-w-3xl mx-auto px-5 sm:px-8 py-24 sm:py-28 text-center reveal">
+          <span class="block w-12 h-12 rounded-xl overflow-hidden shadow-lifted mx-auto">
+            <svg viewBox="0 0 100 100" class="block w-full h-full" aria-hidden="true"><rect width="100" height="100" rx="22" fill="#1976D2"/><defs><mask id="cta-cut"><rect width="100" height="100" fill="white"/><line x1="62" y1="40" x2="94" y2="8" stroke="black" stroke-width="12"/></mask></defs><g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" mask="url(#cta-cut)"><circle cx="50" cy="52" r="26" stroke-width="5.5"/><rect x="36" y="38" width="28" height="28" rx="4" stroke-width="4.5"/></g><path d="M 41 53 L 47.5 60 L 92 10" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <h2 class="mt-6 text-3xl sm:text-5xl h-display">
+            Bring Clio into Claude.
+          </h2>
+          <p class="mt-5 text-lg leading-relaxed max-w-xl mx-auto" style="color: rgb(var(--fg-muted));">
+            Deploy in one command, add the connector, and sign in to your own Clio.
+            Open source, MIT licensed, and ready today.
+          </p>
+          <div class="mt-9 flex flex-wrap items-center justify-center gap-3">
+            <a href="#connect" class="btn btn-primary">
+              Add to Claude
+              <svg viewBox="0 0 20 20" class="w-4 h-4 fill-current" aria-hidden="true"><path d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"/></svg>
+            </a>
+            <a href="https://github.com/patrickking67/clio-manage-mcp" class="btn btn-secondary" rel="noopener">
+              <svg viewBox="0 0 24 24" class="w-4 h-4 fill-current" aria-hidden="true"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.55v-2.03c-3.2.7-3.87-1.36-3.87-1.36-.52-1.33-1.27-1.68-1.27-1.68-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.75 2.67 1.25 3.32.96.1-.74.4-1.25.72-1.54-2.55-.29-5.24-1.28-5.24-5.7 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.46.11-3.04 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.78 0c2.2-1.49 3.16-1.18 3.16-1.18.63 1.58.24 2.75.12 3.04.74.81 1.18 1.84 1.18 3.1 0 4.44-2.7 5.41-5.26 5.69.41.35.78 1.04.78 2.1v3.11c0 .3.21.66.8.55C20.21 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5z"/></svg>
+              View on GitHub
+            </a>
           </div>
         </div>
       </section>
     </main>
 
     <!-- =============== Footer =============== -->
-    <footer style="border-top: 1px solid rgb(var(--border));">
-      <div class="max-w-6xl mx-auto px-5 sm:px-8 py-12 grid sm:grid-cols-3 gap-8 items-start">
-        <div>
+    <footer id="docs" style="border-top: 1px solid rgb(var(--border));">
+      <div class="max-w-6xl mx-auto px-5 sm:px-8 py-14 grid sm:grid-cols-2 lg:grid-cols-4 gap-10 items-start">
+        <div class="sm:col-span-2 lg:col-span-1">
           <div class="flex items-center gap-2.5">
             <span class="block w-8 h-8 rounded-lg overflow-hidden shadow-sm">
-              <svg viewBox="0 0 100 100" class="block w-full h-full" aria-hidden="true">
-                <rect width="100" height="100" rx="22" fill="#1976D2"/>
-                <defs><mask id="ftr-cut"><rect width="100" height="100" fill="white"/><line x1="62" y1="40" x2="94" y2="8" stroke="black" stroke-width="12"/></mask></defs>
-                <g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" mask="url(#ftr-cut)">
-                  <circle cx="50" cy="52" r="26" stroke-width="5.5"/>
-                  <rect x="36" y="38" width="28" height="28" rx="4" stroke-width="4.5"/>
-                </g>
-                <path d="M 41 53 L 47.5 60 L 92 10" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+              <svg viewBox="0 0 100 100" class="block w-full h-full" aria-hidden="true"><rect width="100" height="100" rx="22" fill="#1976D2"/><defs><mask id="ftr-cut"><rect width="100" height="100" fill="white"/><line x1="62" y1="40" x2="94" y2="8" stroke="black" stroke-width="12"/></mask></defs><g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" mask="url(#ftr-cut)"><circle cx="50" cy="52" r="26" stroke-width="5.5"/><rect x="36" y="38" width="28" height="28" rx="4" stroke-width="4.5"/></g><path d="M 41 53 L 47.5 60 L 92 10" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </span>
             <div>
               <div class="font-semibold">Clio Manage MCP</div>
-              <div class="text-xs font-mono" style="color: rgb(var(--fg-faint));">v0.2 · MIT</div>
+              <div class="text-xs font-mono" style="color: rgb(var(--fg-faint));">MIT licensed</div>
             </div>
           </div>
           <p class="mt-5 text-sm max-w-xs leading-relaxed" style="color: rgb(var(--fg-muted));">
-            An independent, open-source bridge between Claude and Clio's v4
-            API. Not affiliated with Themis Solutions, Inc.; the Clio name
-            and mark are used for integration identification only.
+            An independent, open-source Model Context Protocol server that bridges Claude and Clio's v4 API.
           </p>
         </div>
+
         <div>
-          <div class="text-xs font-mono uppercase tracking-wider" style="color: rgb(var(--fg-faint));">Source</div>
-          <ul class="mt-3 space-y-1.5 text-sm">
-            <li><a class="link-u" style="color: rgb(var(--fg));" href="https://github.com/patrickking67/clio-manage-mcp">GitHub repository</a></li>
-            <li><a class="link-u" style="color: rgb(var(--fg));" href="https://github.com/patrickking67/clio-manage-mcp/blob/main/plugin">Plugin source</a></li>
-            <li><a class="link-u" style="color: rgb(var(--fg));" href="https://github.com/patrickking67/clio-manage-mcp/issues">Issue tracker</a></li>
+          <div class="text-xs font-mono uppercase tracking-wider" style="color: rgb(var(--fg-faint));">Get started</div>
+          <ul class="mt-3 space-y-2 text-sm">
+            <li><a class="link-u" style="color: rgb(var(--fg));" href="connectors.md">Connectors guide</a></li>
+            <li><a class="link-u" style="color: rgb(var(--fg));" href="oauth-setup.md">OAuth setup</a></li>
+            <li><a class="link-u" style="color: rgb(var(--fg));" href="deployment-azure.md">Deploy on Azure</a></li>
+            <li><a class="link-u" style="color: rgb(var(--fg));" href="deployment-local.md">Run locally (stdio)</a></li>
           </ul>
         </div>
+
         <div>
-          <div class="text-xs font-mono uppercase tracking-wider" style="color: rgb(var(--fg-faint));">References</div>
-          <ul class="mt-3 space-y-1.5 text-sm">
-            <li><a class="link-u" style="color: rgb(var(--fg));" href="https://docs.developers.clio.com/">Clio API documentation</a></li>
-            <li><a class="link-u" style="color: rgb(var(--fg));" href="https://modelcontextprotocol.io">Model Context Protocol</a></li>
-            <li><a class="link-u" style="color: rgb(var(--fg));" href="https://www.americanbar.org/content/dam/aba/administrative/professional_responsibility/ethics-opinions/aba-formal-opinion-512.pdf">ABA Formal Opinion 512</a></li>
+          <div class="text-xs font-mono uppercase tracking-wider" style="color: rgb(var(--fg-faint));">Reference</div>
+          <ul class="mt-3 space-y-2 text-sm">
+            <li><a class="link-u" style="color: rgb(var(--fg));" href="security.md">Security posture</a></li>
+            <li><a class="link-u" style="color: rgb(var(--fg));" href="https://github.com/patrickking67/clio-manage-mcp" rel="noopener">GitHub repository</a></li>
+            <li><a class="link-u" style="color: rgb(var(--fg));" href="https://github.com/patrickking67/clio-manage-mcp/issues" rel="noopener">Issue tracker</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <div class="text-xs font-mono uppercase tracking-wider" style="color: rgb(var(--fg-faint));">External</div>
+          <ul class="mt-3 space-y-2 text-sm">
+            <li><a class="link-u" style="color: rgb(var(--fg));" href="https://docs.developers.clio.com/" rel="noopener">Clio API docs</a></li>
+            <li><a class="link-u" style="color: rgb(var(--fg));" href="https://modelcontextprotocol.io" rel="noopener">Model Context Protocol</a></li>
+            <li><a class="link-u" style="color: rgb(var(--fg));" href="https://www.americanbar.org/content/dam/aba/administrative/professional_responsibility/ethics-opinions/aba-formal-opinion-512.pdf" rel="noopener">ABA Formal Opinion 512</a></li>
           </ul>
         </div>
       </div>
+
       <div style="border-top: 1px solid rgb(var(--border));">
-        <div class="max-w-6xl mx-auto px-5 sm:px-8 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono" style="color: rgb(var(--fg-faint));">
-          <div>© 2026 · MIT licensed</div>
-          <div class="flex items-center gap-3">
-            <span>v0.2</span>
-            <span>·</span>
+        <div class="max-w-6xl mx-auto px-5 sm:px-8 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <p class="text-xs leading-relaxed max-w-2xl" style="color: rgb(var(--fg-faint));">
+            Built for Clio Manage; not affiliated with, endorsed by, or sponsored by Themis Solutions, Inc.
+            The Clio name and mark are used solely to identify the integration.
+          </p>
+          <div class="flex items-center gap-3 text-xs font-mono shrink-0" style="color: rgb(var(--fg-faint));">
+            <span>&copy; 2026 · MIT</span>
+            <span aria-hidden="true">·</span>
             <span>us · ca · eu · au</span>
           </div>
         </div>
@@ -1464,323 +1609,441 @@ npm run smoke:stdio
     </footer>
 
     <script>
-      // All DOM construction below uses createElement + textContent only.
-      const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-      const makeEl = (tag, cls) => {
-        const e = document.createElement(tag);
-        if (cls) e.className = cls;
-        return e;
-      };
-      const clear = (el) => { while (el.firstChild) el.removeChild(el.firstChild); };
+      (function () {
+        'use strict';
+        // All dynamic DOM uses createElement + textContent only (no innerHTML).
+        var prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        var finePointer = window.matchMedia('(pointer: fine)').matches;
+        var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+        function makeEl(tag, cls) { var e = document.createElement(tag); if (cls) e.className = cls; return e; }
+        function clear(el) { while (el.firstChild) el.removeChild(el.firstChild); }
 
-      // ============ Theme toggle (View Transitions when supported) ============
-      const themeKey = 'theme';
-      const sysMq = window.matchMedia('(prefers-color-scheme: dark)');
-      function applyTheme() {
-        const mode = localStorage.getItem(themeKey) || 'system';
-        const dark = mode === 'dark' || (mode === 'system' && sysMq.matches);
-        document.documentElement.classList.toggle('dark', dark);
-        document.documentElement.dataset.theme = mode;
-        document.querySelectorAll('[data-theme]').forEach((b) => {
-          b.setAttribute('aria-pressed', b.dataset.theme === mode);
+        // ============ Theme toggle (View Transitions when supported) ============
+        var themeKey = 'theme';
+        var sysMq = window.matchMedia('(prefers-color-scheme: dark)');
+        var themeButtons = Array.prototype.slice.call(document.querySelectorAll('[data-theme]'));
+
+        function applyTheme() {
+          var mode = localStorage.getItem(themeKey) || 'system';
+          var dark = mode === 'dark' || (mode === 'system' && sysMq.matches);
+          document.documentElement.classList.toggle('dark', dark);
+          document.documentElement.dataset.theme = mode;
+          themeButtons.forEach(function (b) {
+            var on = b.dataset.theme === mode;
+            b.setAttribute('aria-pressed', String(on));
+            b.setAttribute('aria-checked', String(on));
+          });
+        }
+        function setTheme(mode) {
+          if (mode === 'system') localStorage.removeItem(themeKey);
+          else localStorage.setItem(themeKey, mode);
+          applyTheme();
+        }
+        function toggleTheme(mode, ev) {
+          if (!document.startViewTransition || prefersReduced) { setTheme(mode); return; }
+          if (ev && typeof ev.clientX === 'number') {
+            document.documentElement.style.setProperty('--tx', ev.clientX + 'px');
+            document.documentElement.style.setProperty('--ty', ev.clientY + 'px');
+          }
+          document.startViewTransition(function () { setTheme(mode); });
+        }
+        themeButtons.forEach(function (b) {
+          b.addEventListener('click', function (ev) { toggleTheme(b.dataset.theme, ev); });
         });
-      }
-      function setTheme(mode) {
-        if (mode === 'system') localStorage.removeItem(themeKey);
-        else localStorage.setItem(themeKey, mode);
+        if (sysMq.addEventListener) sysMq.addEventListener('change', applyTheme);
+        else if (sysMq.addListener) sysMq.addListener(applyTheme);
         applyTheme();
-      }
-      function toggleTheme(mode, ev) {
-        if (!document.startViewTransition || prefersReduced) { setTheme(mode); return; }
-        if (ev && ev.clientX) {
-          document.documentElement.style.setProperty('--tx', ev.clientX + 'px');
-          document.documentElement.style.setProperty('--ty', ev.clientY + 'px');
+
+        // ============ Mobile menu ============
+        var menuBtn = document.getElementById('menuBtn');
+        var mobileMenu = document.getElementById('mobileMenu');
+        function closeMenu() {
+          if (!mobileMenu) return;
+          mobileMenu.hidden = true;
+          if (menuBtn) menuBtn.setAttribute('aria-expanded', 'false');
         }
-        document.startViewTransition(() => setTheme(mode));
-      }
-      document.querySelectorAll('[data-theme]').forEach((b) => {
-        b.addEventListener('click', (ev) => toggleTheme(b.dataset.theme, ev));
-      });
-      sysMq.addEventListener('change', applyTheme);
-      applyTheme();
+        if (menuBtn && mobileMenu) {
+          menuBtn.addEventListener('click', function () {
+            var open = mobileMenu.hidden;
+            mobileMenu.hidden = !open;
+            menuBtn.setAttribute('aria-expanded', String(open));
+          });
+          mobileMenu.querySelectorAll('[data-mclose]').forEach(function (a) {
+            a.addEventListener('click', closeMenu);
+          });
+          document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeMenu(); });
+          window.addEventListener('resize', function () { if (window.innerWidth >= 768) closeMenu(); });
+        }
 
-      // ============ Copy buttons ============
-      document.querySelectorAll('[data-copy]').forEach((btn) => {
-        btn.addEventListener('click', async () => {
-          const pre = btn.parentElement.querySelector('pre');
-          const text = pre ? pre.innerText : '';
-          try {
-            await navigator.clipboard.writeText(text);
-            const orig = btn.textContent;
-            btn.textContent = 'copied';
-            btn.classList.add('copied');
-            setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 1400);
-          } catch (e) {
-            btn.textContent = 'failed';
-            setTimeout(() => { btn.textContent = 'copy'; }, 1400);
-          }
+        // ============ Copy buttons ============
+        document.querySelectorAll('[data-copy]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var holder = btn.parentElement;
+            var pre = holder ? holder.querySelector('pre') : null;
+            var text = pre ? pre.innerText : '';
+            var done = function (label, ok) {
+              var orig = 'copy';
+              btn.textContent = label;
+              if (ok) btn.classList.add('copied');
+              setTimeout(function () { btn.textContent = orig; btn.classList.remove('copied'); }, 1400);
+            };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(text).then(function () { done('copied', true); }, function () { done('failed', false); });
+            } else {
+              try {
+                var ta = document.createElement('textarea');
+                ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+                document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+                document.body.removeChild(ta); done('copied', true);
+              } catch (e) { done('failed', false); }
+            }
+          });
         });
-      });
 
-      // ============ Reveal on scroll ============
-      const io = new IntersectionObserver((entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) {
-            e.target.classList.add('in');
-            io.unobserve(e.target);
-          }
-        });
-      }, { rootMargin: '-8% 0px -8% 0px', threshold: 0.03 });
-      document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
+        // ============ Reveal on scroll ============
+        var revealEls = Array.prototype.slice.call(document.querySelectorAll('.reveal'));
+        if (prefersReduced || !('IntersectionObserver' in window)) {
+          revealEls.forEach(function (el) { el.classList.add('in'); });
+        } else {
+          var io = new IntersectionObserver(function (entries) {
+            entries.forEach(function (e) {
+              if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+            });
+          }, { rootMargin: '-6% 0px -6% 0px', threshold: 0.04 });
+          revealEls.forEach(function (el) { io.observe(el); });
+        }
 
-      // ============ Hero cursor-follow spotlight ============
-      const hero = document.getElementById('hero');
-      const spot = document.getElementById('spotlight');
-      if (hero && spot && !prefersReduced && window.matchMedia('(pointer: fine)').matches) {
-        hero.addEventListener('pointermove', (e) => {
-          const r = hero.getBoundingClientRect();
-          spot.style.setProperty('--mx', (e.clientX - r.left) + 'px');
-          spot.style.setProperty('--my', (e.clientY - r.top)  + 'px');
-          spot.classList.add('lit');
-        });
-        hero.addEventListener('pointerleave', () => spot.classList.remove('lit'));
-      }
+        // ============ Hero cursor-follow spotlight ============
+        var hero = document.getElementById('hero');
+        var spot = document.getElementById('spotlight');
+        if (hero && spot && !prefersReduced && finePointer) {
+          hero.addEventListener('pointermove', function (e) {
+            var r = hero.getBoundingClientRect();
+            spot.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+            spot.style.setProperty('--my', (e.clientY - r.top) + 'px');
+            spot.classList.add('lit');
+          });
+          hero.addEventListener('pointerleave', function () { spot.classList.remove('lit'); });
+        }
 
-      // ============ Animated counters ============
-      const easeOutCubic = (x) => 1 - Math.pow(1 - x, 3);
-      const counterIO = new IntersectionObserver((entries) => {
-        entries.forEach((e) => {
-          if (!e.isIntersecting) return;
-          counterIO.unobserve(e.target);
-          const el = e.target;
-          const target = parseInt(el.dataset.count, 10) || 0;
-          if (prefersReduced) { el.textContent = String(target); return; }
+        // ============ Animated counters ============
+        var easeOutCubic = function (x) { return 1 - Math.pow(1 - x, 3); };
+        var counters = Array.prototype.slice.call(document.querySelectorAll('.counter'));
+        function runCounter(el) {
+          var target = parseInt(el.dataset.count, 10) || 0;
+          var suffix = el.dataset.suffix || '';
+          if (prefersReduced) { el.textContent = String(target) + suffix; return; }
           el.dataset.running = 'true';
-          const dur = 1200;
-          const start = performance.now();
+          var dur = 1200;
+          var start = performance.now();
           (function tick(now) {
-            const t = Math.min(1, ((now || performance.now()) - start) / dur);
-            el.textContent = String(Math.round(target * easeOutCubic(t)));
+            var t = Math.min(1, ((now || performance.now()) - start) / dur);
+            el.textContent = String(Math.round(target * easeOutCubic(t))) + (t >= 1 ? suffix : '');
             if (t < 1) requestAnimationFrame(tick);
-            else delete el.dataset.running;
+            else { el.textContent = String(target) + suffix; delete el.dataset.running; }
           })();
-        });
-      }, { threshold: 0.5 });
-      document.querySelectorAll('.counter').forEach((el) => counterIO.observe(el));
+        }
+        if (!('IntersectionObserver' in window)) {
+          counters.forEach(function (el) { el.textContent = String(parseInt(el.dataset.count, 10) || 0) + (el.dataset.suffix || ''); });
+        } else {
+          var counterIO = new IntersectionObserver(function (entries) {
+            entries.forEach(function (e) {
+              if (!e.isIntersecting) return;
+              counterIO.unobserve(e.target);
+              runCounter(e.target);
+            });
+          }, { threshold: 0.5 });
+          counters.forEach(function (el) { counterIO.observe(el); });
+        }
 
-      // ============ Cycling terminal demo ============
-      const demos = [
-        {
-          prompt: [
-            { text: 'Open a new matter for ', tone: 'fg' },
-            { text: 'Jane Smith', tone: 'accent' },
-            { text: ' — landlord/tenant,\nflat fee ', tone: 'fg' },
-            { text: '$2,500', tone: 'accent' },
-            { text: '. Add an opening\nnote and an intake task due Friday.', tone: 'fg' },
-          ],
-          tools: [
-            { name: 'clio_search_contacts',        meta: 'no duplicate' },
-            { name: 'clio_create_person_contact',  meta: '#10421' },
-            { name: 'clio_create_matter',          meta: 'flat-rate patched' },
-            { name: 'clio_create_note',            meta: '' },
-            { name: 'clio_create_task',            meta: 'due 2026-05-22' },
-          ],
-          result: '→ matter #4892 opened',
-        },
-        {
-          prompt: [
-            { text: 'How many hours has ', tone: 'fg' },
-            { text: 'Jane', tone: 'accent' },
-            { text: ' logged on\nmatter ', tone: 'fg' },
-            { text: '4821', tone: 'accent' },
-            { text: ' this month?', tone: 'fg' },
-          ],
-          tools: [
-            { name: 'clio_search_contacts',  meta: 'Jane Doe #842' },
-            { name: 'clio_list_activities',  meta: 'matter_id=4821 · 42 entries' },
-            { name: 'aggregate',             meta: 'sum quantity_in_hours' },
-          ],
-          result: '→ 47.5 billable hours · $23,750 unbilled',
-        },
-        {
-          prompt: [
-            { text: 'Show me bills awaiting payment\nover ', tone: 'fg' },
-            { text: '60 days', tone: 'accent' },
-            { text: ', grouped by client.', tone: 'fg' },
-          ],
-          tools: [
-            { name: 'clio_list_bills',  meta: 'state=awaiting_payment · 127' },
-            { name: 'filter',           meta: 'due_at < 2026-03-18' },
-            { name: 'aggregate',        meta: 'by client · 31 clients' },
-          ],
-          result: '→ $284,500 outstanding · top: Acme Corp $42K',
-        },
-        {
-          prompt: [
-            { text: 'Add a note to matter ', tone: 'fg' },
-            { text: '4821', tone: 'accent' },
-            { text: ":\ntoday's call confirmed retainer.", tone: 'fg' },
-          ],
-          tools: [
-            { name: 'clio_get_matter',   meta: 'etag fetched' },
-            { name: 'clio_create_note',  meta: 'matter_id=4821' },
-          ],
-          result: '→ note attached · audit logged',
-        },
-      ];
-
-      const promptEl = document.getElementById('termPrompt');
-      const outEl    = document.getElementById('termOut');
-      const resEl    = document.getElementById('termResult');
-      const tabs     = document.querySelectorAll('.term-tab');
-
-      function setTab(i) { tabs.forEach((t, idx) => t.classList.toggle('is-active', idx === i)); }
-
-      function setupPrompt() {
-        clear(promptEl);
-        const marker = makeEl('span', 'marker'); marker.textContent = '›';
-        const typed  = makeEl('span');
-        const caret  = makeEl('span', 'caret');
-        promptEl.append(marker, typed, caret);
-        return { typed, caret };
-      }
-
-      async function typePrompt(parts) {
-        const { typed, caret } = setupPrompt();
-        for (const part of parts) {
-          const span = makeEl('span', part.tone === 'accent' ? 'accent' : null);
-          typed.appendChild(span);
-          for (const ch of part.text) {
-            if (ch === '\n') span.appendChild(document.createElement('br'));
-            else span.appendChild(document.createTextNode(ch));
-            await sleep(prefersReduced ? 0 : 14 + Math.random() * 18);
+        // ============ Deploy tabs ============
+        (function () {
+          var tabs = [
+            { btn: document.getElementById('tab-azure'), panel: document.getElementById('panel-azure') },
+            { btn: document.getElementById('tab-local'), panel: document.getElementById('panel-local') }
+          ].filter(function (t) { return t.btn && t.panel; });
+          if (!tabs.length) return;
+          function select(i) {
+            tabs.forEach(function (t, idx) {
+              var on = idx === i;
+              t.btn.setAttribute('aria-selected', String(on));
+              t.panel.hidden = !on;
+            });
           }
+          tabs.forEach(function (t, i) {
+            t.btn.addEventListener('click', function () { select(i); });
+            t.btn.addEventListener('keydown', function (e) {
+              if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+                e.preventDefault();
+                var next = (i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length;
+                select(next); tabs[next].btn.focus();
+              }
+            });
+          });
+        })();
+
+        // ============ Cycling terminal demo ============
+        var demos = [
+          {
+            prompt: [
+              { text: 'Open a new matter for ', tone: 'fg' },
+              { text: 'Jane Smith', tone: 'accent' },
+              { text: ' — landlord/tenant,\nflat fee ', tone: 'fg' },
+              { text: '$2,500', tone: 'accent' },
+              { text: '. Add an opening\nnote and an intake task due Friday.', tone: 'fg' }
+            ],
+            tools: [
+              { name: 'clio_search_contacts', meta: 'no duplicate' },
+              { name: 'clio_create_person_contact', meta: '#10421' },
+              { name: 'clio_create_matter', meta: 'flat-rate set' },
+              { name: 'clio_create_note', meta: '' },
+              { name: 'clio_create_task', meta: 'due Fri' }
+            ],
+            result: '→ matter #4892 opened'
+          },
+          {
+            prompt: [
+              { text: 'How many hours has ', tone: 'fg' },
+              { text: 'Jane', tone: 'accent' },
+              { text: ' logged on\nmatter ', tone: 'fg' },
+              { text: '4821', tone: 'accent' },
+              { text: ' this month?', tone: 'fg' }
+            ],
+            tools: [
+              { name: 'clio_search_contacts', meta: 'Jane Doe #842' },
+              { name: 'clio_list_activities', meta: 'matter_id=4821 · 42 entries' },
+              { name: 'aggregate', meta: 'sum hours' }
+            ],
+            result: '→ 47.5 billable hours · $23,750 unbilled'
+          },
+          {
+            prompt: [
+              { text: 'Show me bills awaiting payment\nover ', tone: 'fg' },
+              { text: '60 days', tone: 'accent' },
+              { text: ', grouped by client.', tone: 'fg' }
+            ],
+            tools: [
+              { name: 'clio_list_bills', meta: 'state=awaiting · 127' },
+              { name: 'filter', meta: 'due_at < cutoff' },
+              { name: 'aggregate', meta: 'by client · 31' }
+            ],
+            result: '→ $284,500 outstanding · top: Acme Corp $42K'
+          },
+          {
+            prompt: [
+              { text: 'Add a note to matter ', tone: 'fg' },
+              { text: '4821', tone: 'accent' },
+              { text: ":\ntoday's call confirmed the retainer.", tone: 'fg' }
+            ],
+            tools: [
+              { name: 'clio_get_matter', meta: 'etag fetched' },
+              { name: 'clio_create_note', meta: 'matter_id=4821' }
+            ],
+            result: '→ note attached · audit logged'
+          }
+        ];
+
+        var promptEl = document.getElementById('termPrompt');
+        var outEl = document.getElementById('termOut');
+        var resEl = document.getElementById('termResult');
+        var tabEls = Array.prototype.slice.call(document.querySelectorAll('.term-tab'));
+        var demoToken = 0;
+
+        function setTab(i) { tabEls.forEach(function (t, idx) { t.classList.toggle('is-active', idx === i); }); }
+
+        function setupPrompt() {
+          clear(promptEl);
+          var marker = makeEl('span', 'marker'); marker.textContent = '›';
+          var typed = makeEl('span');
+          var caret = makeEl('span', 'caret');
+          promptEl.appendChild(marker); promptEl.appendChild(typed); promptEl.appendChild(caret);
+          return { typed: typed, caret: caret };
         }
-        return caret;
-      }
 
-      function makeRow(name, meta) {
-        const row   = makeEl('div', 'term-row');
-        const check = makeEl('span', 'check'); check.textContent = '✓';
-        const body  = makeEl('span');
-        const acc   = makeEl('span', 'acc');   acc.textContent = name;
-        body.appendChild(acc);
-        if (meta) {
-          body.appendChild(document.createTextNode(' '));
-          const m = makeEl('span', 'meta'); m.textContent = meta;
-          body.appendChild(m);
+        function typePrompt(parts, token) {
+          var ref = setupPrompt();
+          var chain = Promise.resolve();
+          parts.forEach(function (part) {
+            chain = chain.then(function () {
+              if (token !== demoToken) return;
+              var span = makeEl('span', part.tone === 'accent' ? 'accent' : null);
+              ref.typed.appendChild(span);
+              var charChain = Promise.resolve();
+              part.text.split('').forEach(function (ch) {
+                charChain = charChain.then(function () {
+                  if (token !== demoToken) return;
+                  if (ch === '\n') span.appendChild(document.createElement('br'));
+                  else span.appendChild(document.createTextNode(ch));
+                  return sleep(prefersReduced ? 0 : 14 + Math.random() * 18);
+                });
+              });
+              return charChain;
+            });
+          });
+          return chain.then(function () { return ref.caret; });
         }
-        row.append(check, body);
-        return row;
-      }
 
-      async function runDemo(i) {
-        if (!promptEl) return;
-        setTab(i);
-        const d = demos[i];
-        clear(promptEl);
-        clear(outEl);
-        resEl.classList.remove('in');
-        resEl.textContent = '';
-        await sleep(120);
-        const caret = await typePrompt(d.prompt);
-        if (caret) caret.remove();
-        for (const t of d.tools) {
-          const row = makeRow(t.name, t.meta);
-          outEl.appendChild(row);
-          await sleep(120);
-          requestAnimationFrame(() => row.classList.add('in'));
-          await sleep(prefersReduced ? 0 : 320);
+        function makeRow(name, meta) {
+          var row = makeEl('div', 'term-row');
+          var check = makeEl('span', 'check'); check.textContent = '✓';
+          var body = makeEl('span');
+          var acc = makeEl('span', 'acc'); acc.textContent = name;
+          body.appendChild(acc);
+          if (meta) {
+            body.appendChild(document.createTextNode(' '));
+            var m = makeEl('span', 'meta'); m.textContent = meta;
+            body.appendChild(m);
+          }
+          row.appendChild(check); row.appendChild(body);
+          return row;
         }
-        await sleep(280);
-        resEl.textContent = d.result;
-        resEl.classList.add('in');
-      }
 
-      (async function loop() {
-        if (!promptEl) return;
-        let i = 0;
-        await runDemo(i);
-        if (prefersReduced) return;
-        while (true) {
-          await sleep(4200);
-          i = (i + 1) % demos.length;
-          await runDemo(i);
+        function runDemo(i) {
+          if (!promptEl) return Promise.resolve();
+          demoToken++;
+          var token = demoToken;
+          setTab(i);
+          var d = demos[i];
+          clear(promptEl); clear(outEl);
+          resEl.classList.remove('in'); resEl.textContent = '';
+          return sleep(120).then(function () {
+            return typePrompt(d.prompt, token);
+          }).then(function (caret) {
+            if (token !== demoToken) return;
+            if (caret) caret.remove();
+            var chain = Promise.resolve();
+            d.tools.forEach(function (t) {
+              chain = chain.then(function () {
+                if (token !== demoToken) return;
+                var row = makeRow(t.name, t.meta);
+                outEl.appendChild(row);
+                return sleep(120).then(function () {
+                  requestAnimationFrame(function () { row.classList.add('in'); });
+                  return sleep(prefersReduced ? 0 : 320);
+                });
+              });
+            });
+            return chain;
+          }).then(function () {
+            if (token !== demoToken) return;
+            return sleep(260);
+          }).then(function () {
+            if (token !== demoToken) return;
+            resEl.textContent = d.result;
+            resEl.classList.add('in');
+          });
         }
-      })();
-      tabs.forEach((t) => t.addEventListener('click', () => runDemo(parseInt(t.dataset.tab, 10))));
 
-      // ============ Tool catalog filter (DOM-only) ============
-      const tf            = document.getElementById('toolFilter');
-      const tfWrap        = document.getElementById('toolSearch');
-      const tfClear       = document.getElementById('toolClear');
-      const toolEmpty     = document.getElementById('toolEmpty');
-      const toolEmptyBtn  = document.getElementById('toolEmptyClear');
-      const toolCards     = Array.from(document.querySelectorAll('[data-tool]'));
+        if (promptEl) {
+          var demoIndex = 0;
+          var autoplay = !prefersReduced;
+          (function loop() {
+            runDemo(demoIndex).then(function () {
+              if (!autoplay) return;
+              setTimeout(function () {
+                if (!autoplay) return;
+                demoIndex = (demoIndex + 1) % demos.length;
+                loop();
+              }, 4200);
+            });
+          })();
+          tabEls.forEach(function (t) {
+            t.addEventListener('click', function () {
+              autoplay = false;
+              demoIndex = parseInt(t.dataset.tab, 10) || 0;
+              runDemo(demoIndex);
+            });
+          });
+        }
 
-      // Cache each li's original textContent so we can rebuild with <mark>
-      toolCards.forEach((card) => {
-        const lis = card.querySelectorAll('li');
-        card._origText = Array.from(lis).map((li) => li.textContent);
-      });
+        // ============ Tool catalog filter (DOM-only) ============
+        var tf = document.getElementById('toolFilter');
+        var tfWrap = document.getElementById('toolSearch');
+        var tfClear = document.getElementById('toolClear');
+        var toolEmpty = document.getElementById('toolEmpty');
+        var toolEmptyBtn = document.getElementById('toolEmptyClear');
+        var toolCards = Array.prototype.slice.call(document.querySelectorAll('[data-tool]'));
 
-      function filterTools() {
-        const q = (tf.value || '').trim().toLowerCase();
-        tfWrap.classList.toggle('has-value', q.length > 0);
-        let visible = 0;
-        toolCards.forEach((card) => {
-          const lis = card.querySelectorAll('li');
-          lis.forEach((li, i) => { li.textContent = card._origText[i]; });
-          if (!q) {
-            card.classList.remove('hide');
+        toolCards.forEach(function (card) {
+          var lis = card.querySelectorAll('li');
+          card._origText = Array.prototype.slice.call(lis).map(function (li) { return li.textContent; });
+        });
+
+        function filterTools() {
+          var q = (tf.value || '').trim().toLowerCase();
+          tfWrap.classList.toggle('has-value', q.length > 0);
+          var visible = 0;
+          toolCards.forEach(function (card) {
+            var lis = card.querySelectorAll('li');
+            lis.forEach(function (li, i) { li.textContent = card._origText[i]; });
+            if (!q) { card.classList.remove('hide'); visible++; return; }
+            var haystack = (card.dataset.domain + ' ' + card.dataset.tools + ' ' + card.textContent).toLowerCase();
+            var match = haystack.indexOf(q) !== -1;
+            card.classList.toggle('hide', !match);
+            if (!match) return;
             visible++;
-            return;
-          }
-          const haystack = (card.dataset.domain + ' ' + card.dataset.tools + ' ' + card.textContent).toLowerCase();
-          const match = haystack.includes(q);
-          card.classList.toggle('hide', !match);
-          if (!match) return;
-          visible++;
-          lis.forEach((li, i) => {
-            const txt = card._origText[i];
-            const idx = txt.toLowerCase().indexOf(q);
-            if (idx < 0) return;
-            clear(li);
-            li.appendChild(document.createTextNode(txt.slice(0, idx)));
-            const m = document.createElement('mark');
-            m.textContent = txt.slice(idx, idx + q.length);
-            li.appendChild(m);
-            li.appendChild(document.createTextNode(txt.slice(idx + q.length)));
+            lis.forEach(function (li, i) {
+              var txt = card._origText[i];
+              var idx = txt.toLowerCase().indexOf(q);
+              if (idx < 0) return;
+              clear(li);
+              li.appendChild(document.createTextNode(txt.slice(0, idx)));
+              var mk = document.createElement('mark');
+              mk.textContent = txt.slice(idx, idx + q.length);
+              li.appendChild(mk);
+              li.appendChild(document.createTextNode(txt.slice(idx + q.length)));
+            });
           });
-        });
-        toolEmpty.classList.toggle('show', visible === 0);
-      }
+          if (toolEmpty) toolEmpty.classList.toggle('show', visible === 0);
+        }
 
-      if (tf) {
-        tf.addEventListener('input', filterTools);
-        tfClear.addEventListener('click', () => { tf.value = ''; filterTools(); tf.focus(); });
-        toolEmptyBtn.addEventListener('click', () => { tf.value = ''; filterTools(); tf.focus(); });
-        document.addEventListener('keydown', (e) => {
-          if (e.key === '/' && !['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) {
-            e.preventDefault();
-            tf.focus();
-          }
-        });
-      }
-
-      // ============ Magnetic tilt on feature cards ============
-      if (!prefersReduced && window.matchMedia('(pointer: fine)').matches) {
-        document.querySelectorAll('.tilt').forEach((el) => {
-          el.addEventListener('pointermove', (e) => {
-            const r = el.getBoundingClientRect();
-            const x = (e.clientX - r.left) / r.width - 0.5;
-            const y = (e.clientY - r.top)  / r.height - 0.5;
-            el.style.transform = `perspective(900px) rotateX(${(-y * 4).toFixed(2)}deg) rotateY(${(x * 4).toFixed(2)}deg) translateY(-2px)`;
+        if (tf) {
+          tf.addEventListener('input', filterTools);
+          tfClear.addEventListener('click', function () { tf.value = ''; filterTools(); tf.focus(); });
+          if (toolEmptyBtn) toolEmptyBtn.addEventListener('click', function () { tf.value = ''; filterTools(); tf.focus(); });
+          document.addEventListener('keydown', function (e) {
+            if (e.key === '/' && ['INPUT', 'TEXTAREA'].indexOf(document.activeElement.tagName) === -1) {
+              e.preventDefault();
+              tf.focus();
+            }
           });
-          el.addEventListener('pointerleave', () => { el.style.transform = ''; });
-        });
-      }
+        }
+
+        // ============ Magnetic tilt on cards ============
+        if (!prefersReduced && finePointer) {
+          document.querySelectorAll('.tilt').forEach(function (el) {
+            el.addEventListener('pointermove', function (e) {
+              var r = el.getBoundingClientRect();
+              var x = (e.clientX - r.left) / r.width - 0.5;
+              var y = (e.clientY - r.top) / r.height - 0.5;
+              el.style.transform = 'perspective(900px) rotateX(' + (-y * 4).toFixed(2) + 'deg) rotateY(' + (x * 4).toFixed(2) + 'deg) translateY(-2px)';
+            });
+            el.addEventListener('pointerleave', function () { el.style.transform = ''; });
+          });
+        }
+
+        // ============ Scroll-spy nav active state ============
+        (function () {
+          if (!('IntersectionObserver' in window)) return;
+          var ids = ['connect', 'features', 'tools', 'deploy', 'security'];
+          var linkFor = {};
+          document.querySelectorAll('nav[aria-label="Primary"] a').forEach(function (a) {
+            var id = a.getAttribute('href').replace('#', '');
+            linkFor[id] = a;
+          });
+          var spy = new IntersectionObserver(function (entries) {
+            entries.forEach(function (e) {
+              var a = linkFor[e.target.id];
+              if (!a) return;
+              if (e.isIntersecting) {
+                Object.keys(linkFor).forEach(function (k) { linkFor[k].style.color = ''; });
+                a.style.color = 'rgb(var(--fg))';
+              }
+            });
+          }, { rootMargin: '-45% 0px -50% 0px' });
+          ids.forEach(function (id) { var s = document.getElementById(id); if (s) spy.observe(s); });
+        })();
+      })();
     </script>
   </body>
 </html>
