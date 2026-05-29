@@ -10,15 +10,18 @@ export function registerAuthTools(server: McpServer, ctx: ToolContext): void {
     description:
       "Starts the OAuth 2.0 authorization-code flow with Clio in the user's default browser, " +
       "then persists the resulting access + refresh tokens (encrypted with AES-256-GCM) to disk. " +
-      "Local stdio transport only — HTTP transports must be seeded with tokens out-of-band.",
+      "LOCAL STDIO TRANSPORT ONLY. On a remote/HTTP deployment (the Clio custom connector), each " +
+      "end user authenticates through the connector's own OAuth sign-in — Claude drives that flow " +
+      "when you add the connector — so this tool is unavailable there and is not needed.",
     inputSchema: {},
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     async handler(_args, c) {
       if (c.transport === "http") {
         throw new Error(
           "clio_authenticate is only usable from a local stdio session. " +
-            "For HTTP/Azure deployments, perform the OAuth dance once locally and copy the encrypted " +
-            "token blob (or the refresh token) into a Key Vault secret. See docs/deployment-azure.md.",
+            "On the remote connector, authentication is per-user via the connector's OAuth sign-in " +
+            "(Claude opens the Clio login when you add the connector); there is nothing to run here. " +
+            "For static/shared HTTP mode, seed CLIO_BOOTSTRAP_REFRESH_TOKEN at deploy time.",
         );
       }
       const tokens = await c.client.authenticate();
@@ -37,8 +40,10 @@ export function registerAuthTools(server: McpServer, ctx: ToolContext): void {
     name: "clio_auth_status",
     title: "Auth status",
     description:
-      "Reports whether the server is currently holding valid Clio credentials, the Clio user id " +
-      "they were issued to, and when the access token expires.",
+      "Reports whether valid Clio credentials are currently available, the Clio user id they were " +
+      "issued to, and when the access token expires. On the remote connector this reflects YOUR " +
+      "own per-user session (established via the connector's OAuth sign-in); on local stdio and " +
+      "static/shared HTTP mode it reflects the single shared account.",
     inputSchema: {},
     annotations: { readOnlyHint: true, openWorldHint: false },
     async handler(_args, c) {
@@ -49,6 +54,7 @@ export function registerAuthTools(server: McpServer, ctx: ToolContext): void {
         expires_at: expiresAt?.toISOString() ?? null,
         region: c.cfg.region,
         api_base: c.cfg.apiBase,
+        auth_mode: c.transport === "http" ? "connector-oauth-or-shared" : "stdio-shared",
       };
     },
   });
@@ -57,12 +63,21 @@ export function registerAuthTools(server: McpServer, ctx: ToolContext): void {
     name: "clio_logout",
     title: "Clear stored Clio credentials",
     description:
-      "Deletes the encrypted token file. After logout the server cannot make Clio API calls until " +
-      "`clio_authenticate` is run again. Does not revoke the token on Clio's side — use Clio's " +
-      "Developer Applications screen to fully revoke.",
+      "Deletes the encrypted token file for the shared account (local stdio / static HTTP mode). " +
+      "Does not revoke the token on Clio's side — use Clio's Developer Applications screen to fully " +
+      "revoke. On the remote connector, per-user sessions are not cleared by this tool; disconnect " +
+      "the connector in Claude (or revoke the app in Clio) to end a session.",
     inputSchema: {},
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
     async handler(_args, c) {
+      if (c.transport === "http" && c.callerId?.startsWith("clio:")) {
+        return {
+          ok: false,
+          message:
+            "This is a per-user connector session. Disconnect the connector in Claude, or revoke " +
+            "the application under Clio Settings → Developer Applications, to end it.",
+        };
+      }
       await c.client.logout();
       return { ok: true, message: "Local tokens cleared." };
     },

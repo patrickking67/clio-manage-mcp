@@ -5,6 +5,9 @@ build
 .env
 .env.*
 .clio-mcp
+tokens.enc
+*.pem
+*.key
 *.log
 .vscode
 .idea

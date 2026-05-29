@@ -17,6 +17,18 @@ const REGION_HOSTS: Record<Region, string> = {
 export type AuditMode = "none" | "metadata" | "full";
 export type Transport = "stdio" | "http";
 
+/**
+ * How the HTTP transport authenticates MCP clients.
+ *
+ *   - "oauth"  : remote OAuth 2.1 custom-connector flow only. Each end user
+ *                bridges to their OWN Clio account. Requires PUBLIC_BASE_URL.
+ *   - "static" : legacy shared static bearer token(s) only, mapped to a single
+ *                shared Clio account (disk/bootstrap). No PUBLIC_BASE_URL needed.
+ *   - "hybrid" : accept EITHER an OAuth-issued session token OR a configured
+ *                static bearer token (default). Requires PUBLIC_BASE_URL.
+ */
+export type McpAuthMode = "oauth" | "static" | "hybrid";
+
 export interface Config {
   clientId: string;
   clientSecret: string;
@@ -46,6 +58,23 @@ export interface Config {
    * the loopback OAuth flow cannot run.
    */
   bootstrapRefreshToken: string | null;
+  /**
+   * Public, externally-reachable base URL of this server (no trailing slash),
+   * e.g. "https://clio-mcp.example.com". Used to build the OAuth issuer,
+   * authorize/token/registration endpoints and the Clio redirect URI. Required
+   * when mcpAuthMode is "oauth" or "hybrid" (the SDK's mcpAuthRouter needs
+   * fixed URLs at construction time). Null when unset.
+   */
+  publicBaseUrl: string | null;
+  /** HTTP client authentication mode. Default "hybrid". */
+  mcpAuthMode: McpAuthMode;
+  /** Lifetime of an issued MCP session (access token) in seconds. Default 30 days. */
+  mcpSessionTtlSeconds: number;
+  /**
+   * Optional space-separated Clio OAuth scopes. Only appended to the Clio
+   * authorize URL when set (Clio grants full access by default if omitted).
+   */
+  clioOAuthScopes: string | null;
 }
 
 class ConfigError extends Error {}
@@ -125,6 +154,24 @@ export function loadConfig(cliArgs: string[] = process.argv.slice(2)): Config {
     throw new ConfigError(`CLIO_DEFAULT_USER_ID must be a number, got: ${defaultUserIdRaw}`);
   }
 
+  const mcpAuthMode = ((process.env.MCP_AUTH_MODE as McpAuthMode) ?? "hybrid").toLowerCase() as McpAuthMode;
+  if (!["oauth", "static", "hybrid"].includes(mcpAuthMode)) {
+    throw new ConfigError(`MCP_AUTH_MODE must be one of: oauth, static, hybrid (got: ${mcpAuthMode})`);
+  }
+
+  const publicBaseUrlRaw = process.env.PUBLIC_BASE_URL;
+  const publicBaseUrl =
+    publicBaseUrlRaw && publicBaseUrlRaw.trim() !== ""
+      ? publicBaseUrlRaw.trim().replace(/\/+$/, "")
+      : null;
+  if (publicBaseUrl !== null && !/^https?:\/\//i.test(publicBaseUrl)) {
+    throw new ConfigError(`PUBLIC_BASE_URL must be an absolute http(s) URL, got: ${publicBaseUrl}`);
+  }
+
+  const clioOAuthScopesRaw = process.env.CLIO_OAUTH_SCOPES;
+  const clioOAuthScopes =
+    clioOAuthScopesRaw && clioOAuthScopesRaw.trim() !== "" ? clioOAuthScopesRaw.trim() : null;
+
   return {
     clientId: req("CLIO_CLIENT_ID", process.env.CLIO_CLIENT_ID),
     clientSecret: req("CLIO_CLIENT_SECRET", process.env.CLIO_CLIENT_SECRET),
@@ -151,6 +198,14 @@ export function loadConfig(cliArgs: string[] = process.argv.slice(2)): Config {
       process.env.CLIO_BOOTSTRAP_REFRESH_TOKEN && process.env.CLIO_BOOTSTRAP_REFRESH_TOKEN.trim() !== ""
         ? process.env.CLIO_BOOTSTRAP_REFRESH_TOKEN.trim()
         : null,
+    publicBaseUrl,
+    mcpAuthMode,
+    mcpSessionTtlSeconds: optInt(
+      "MCP_SESSION_TTL_SECONDS",
+      process.env.MCP_SESSION_TTL_SECONDS,
+      2_592_000,
+    ),
+    clioOAuthScopes,
   };
 }
 

@@ -11,6 +11,9 @@
     "clioRegion": {
       "value": "${CLIO_REGION=us}"
     },
+    "authMode": {
+      "value": "${MCP_AUTH_MODE=oauth}"
+    },
     "logLevel": {
       "value": "${LOG_LEVEL=info}"
     },

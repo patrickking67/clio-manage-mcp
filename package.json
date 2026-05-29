@@ -26,11 +26,12 @@
     "test": "node --test --import tsx 'src/**/*.test.ts'",
     "smoke:stdio": "node scripts/smoke-stdio.mjs",
     "smoke:http": "node scripts/smoke-http.mjs",
+    "smoke:oauth": "node scripts/smoke-oauth.mjs",
     "inspector": "npx -y @modelcontextprotocol/inspector node build/index.js",
     "clean": "rimraf build"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.4",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
     "open": "^10.1.0",

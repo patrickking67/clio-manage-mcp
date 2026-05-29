@@ -30,6 +30,13 @@ param location string = resourceGroup().location
 @description('Clio region to talk to.')
 param clioRegion string = 'us'
 
+@allowed([ 'oauth', 'static', 'hybrid' ])
+@description('''Server auth mode.
+  oauth  = per-user OAuth bridge to Clio (remote custom connector). Default.
+  static = shared static bearer token + one shared Clio account.
+  hybrid = both. oauth/hybrid REQUIRE PUBLIC_BASE_URL (derived below, HTTPS).''')
+param authMode string = 'oauth'
+
 @description('How verbose the application log is. error | warn | info | debug.')
 param logLevel string = 'info'
 
@@ -71,6 +78,23 @@ var nameBase = 'cliomcp-${take(resourceSuffix, 14)}'
 var storageAccountName = take('cliomcp${resourceSuffix}', 24)
 var acrName = take('cliomcpacr${resourceSuffix}', 50)
 var keyVaultName = take('kv-cliomcp-${resourceSuffix}', 24)
+
+// Container App name. Must match the `app` resource's `name` below so the
+// derived public URL equals the app's ingress FQDN.
+var appName = 'ca-${nameBase}'
+
+// Whether the static-only path is active. In pure 'oauth' mode the shared
+// static bearer token + shared Clio refresh token are NOT used, so their
+// Key Vault secret refs must be absent (a keyVaultUrl ref to a missing KV
+// secret makes the container fail to start).
+var staticEnabled = authMode != 'oauth'
+
+// Public base URL for the OAuth issuer + connector endpoint. Derived from the
+// Container Apps environment's stable default domain — NOT from the app's own
+// ingress FQDN, which would be circular. For an external ingress Container App,
+// the ingress FQDN is exactly `<appName>.<env defaultDomain>`. HTTPS is required
+// by the MCP SDK's OAuth issuer (non-localhost). `cae` is declared before `app`.
+var publicBaseUrl = 'https://${appName}.${cae.properties.defaultDomain}'
 
 // ---------- Log Analytics + App Insights ------------------------------------
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
@@ -203,7 +227,7 @@ resource caeStorage 'Microsoft.App/managedEnvironments/storages@2024-03-01' = {
 
 // ---------- Container App ---------------------------------------------------
 resource app 'Microsoft.App/containerApps@2024-03-01' = {
-  name: 'ca-${nameBase}'
+  name: appName
   location: location
   identity: {
     type: 'UserAssigned'
@@ -230,33 +254,41 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
           identity: identity.id
         }
       ]
-      secrets: [
-        {
-          name: 'clio-client-id'
-          keyVaultUrl: '${kv.properties.vaultUri}secrets/clio-client-id'
-          identity: identity.id
-        }
-        {
-          name: 'clio-client-secret'
-          keyVaultUrl: '${kv.properties.vaultUri}secrets/clio-client-secret'
-          identity: identity.id
-        }
-        {
-          name: 'clio-encryption-key'
-          keyVaultUrl: '${kv.properties.vaultUri}secrets/clio-encryption-key'
-          identity: identity.id
-        }
-        {
-          name: 'clio-http-auth-tokens'
-          keyVaultUrl: '${kv.properties.vaultUri}secrets/clio-http-auth-tokens'
-          identity: identity.id
-        }
-        {
-          name: 'clio-refresh-token'
-          keyVaultUrl: '${kv.properties.vaultUri}secrets/clio-refresh-token'
-          identity: identity.id
-        }
-      ]
+      // Always-present secrets (required in every mode) + static-only secrets
+      // appended ONLY when authMode != 'oauth'. Each entry is a Key Vault
+      // reference resolved via the user-assigned identity; a ref to a missing
+      // KV secret would fail the container, so static-only refs are conditional.
+      secrets: concat(
+        [
+          {
+            name: 'clio-client-id'
+            keyVaultUrl: '${kv.properties.vaultUri}secrets/clio-client-id'
+            identity: identity.id
+          }
+          {
+            name: 'clio-client-secret'
+            keyVaultUrl: '${kv.properties.vaultUri}secrets/clio-client-secret'
+            identity: identity.id
+          }
+          {
+            name: 'clio-encryption-key'
+            keyVaultUrl: '${kv.properties.vaultUri}secrets/clio-encryption-key'
+            identity: identity.id
+          }
+        ],
+        staticEnabled ? [
+          {
+            name: 'clio-http-auth-tokens'
+            keyVaultUrl: '${kv.properties.vaultUri}secrets/clio-http-auth-tokens'
+            identity: identity.id
+          }
+          {
+            name: 'clio-refresh-token'
+            keyVaultUrl: '${kv.properties.vaultUri}secrets/clio-refresh-token'
+            identity: identity.id
+          }
+        ] : []
+      )
     }
     template: {
       revisionSuffix: substring(uniqueString(imageTag, deployment().name), 0, 8)
@@ -268,24 +300,33 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
             cpu: json(containerCpu)
             memory: containerMemory
           }
-          env: [
-            { name: 'NODE_ENV', value: 'production' }
-            { name: 'CLIO_TRANSPORT', value: 'http' }
-            { name: 'CLIO_HTTP_HOST', value: '0.0.0.0' }
-            { name: 'CLIO_HTTP_PORT', value: '8765' }
-            { name: 'CLIO_REGION', value: clioRegion }
-            { name: 'CLIO_STATE_DIR', value: '/state' }
-            { name: 'CLIO_AUDIT_MODE', value: auditMode }
-            { name: 'CLIO_ALLOW_DESTRUCTIVE', value: string(allowDestructive) }
-            { name: 'CLIO_DEFAULT_USER_ID', value: defaultUserId }
-            { name: 'LOG_LEVEL', value: logLevel }
-            { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.properties.ConnectionString }
-            { name: 'CLIO_CLIENT_ID', secretRef: 'clio-client-id' }
-            { name: 'CLIO_CLIENT_SECRET', secretRef: 'clio-client-secret' }
-            { name: 'CLIO_ENCRYPTION_KEY', secretRef: 'clio-encryption-key' }
-            { name: 'CLIO_HTTP_AUTH_TOKENS', secretRef: 'clio-http-auth-tokens' }
-            { name: 'CLIO_BOOTSTRAP_REFRESH_TOKEN', secretRef: 'clio-refresh-token' }
-          ]
+          // Static-only env vars (CLIO_HTTP_AUTH_TOKENS / CLIO_BOOTSTRAP_REFRESH_TOKEN)
+          // are appended ONLY when authMode != 'oauth', mirroring the conditional
+          // secrets above (they reference secret names that only exist then).
+          env: concat(
+            [
+              { name: 'NODE_ENV', value: 'production' }
+              { name: 'CLIO_TRANSPORT', value: 'http' }
+              { name: 'CLIO_HTTP_HOST', value: '0.0.0.0' }
+              { name: 'CLIO_HTTP_PORT', value: '8765' }
+              { name: 'MCP_AUTH_MODE', value: authMode }
+              { name: 'PUBLIC_BASE_URL', value: publicBaseUrl }
+              { name: 'CLIO_REGION', value: clioRegion }
+              { name: 'CLIO_STATE_DIR', value: '/state' }
+              { name: 'CLIO_AUDIT_MODE', value: auditMode }
+              { name: 'CLIO_ALLOW_DESTRUCTIVE', value: string(allowDestructive) }
+              { name: 'CLIO_DEFAULT_USER_ID', value: defaultUserId }
+              { name: 'LOG_LEVEL', value: logLevel }
+              { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.properties.ConnectionString }
+              { name: 'CLIO_CLIENT_ID', secretRef: 'clio-client-id' }
+              { name: 'CLIO_CLIENT_SECRET', secretRef: 'clio-client-secret' }
+              { name: 'CLIO_ENCRYPTION_KEY', secretRef: 'clio-encryption-key' }
+            ],
+            staticEnabled ? [
+              { name: 'CLIO_HTTP_AUTH_TOKENS', secretRef: 'clio-http-auth-tokens' }
+              { name: 'CLIO_BOOTSTRAP_REFRESH_TOKEN', secretRef: 'clio-refresh-token' }
+            ] : []
+          )
           volumeMounts: [
             { volumeName: 'state', mountPath: '/state' }
           ]
@@ -337,4 +378,12 @@ output AZURE_IDENTITY_RESOURCE_ID string = identity.id
 output APPLICATIONINSIGHTS_CONNECTION_STRING string = appInsights.properties.ConnectionString
 output SERVICE_API_NAME string = app.name
 output SERVICE_API_URI string = 'https://${app.properties.configuration.ingress.fqdn}'
-output SERVICE_API_MCP_ENDPOINT string = 'https://${app.properties.configuration.ingress.fqdn}/mcp'
+
+// OAuth remote custom connector wiring. publicBaseUrl is derived from the
+// Container Apps environment domain and equals the app's ingress FQDN.
+output MCP_AUTH_MODE string = authMode
+output SERVICE_API_PUBLIC_BASE_URL string = publicBaseUrl
+// Paste this into Claude as the custom connector URL, then sign in to Clio.
+output SERVICE_API_MCP_ENDPOINT string = '${publicBaseUrl}/mcp'
+// Register this redirect URI on your Clio Developer Application.
+output CLIO_OAUTH_REDIRECT_URI string = '${publicBaseUrl}/oauth/clio/callback'

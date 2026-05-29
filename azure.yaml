@@ -3,12 +3,16 @@
 #   azd auth login
 #   azd up        # provisions infra + builds + deploys
 #
-# After provisioning, populate Key Vault with secrets (see docs/deployment-azure.md):
+# Deploys as a per-user OAuth remote custom connector by default
+# (MCP_AUTH_MODE=oauth). After provisioning, populate Key Vault with the 3
+# required secrets (see docs/deployment-azure.md):
 #   - clio-client-id
 #   - clio-client-secret
-#   - clio-encryption-key  (64-char hex)
-#   - clio-refresh-token   (seeded from a one-time local OAuth dance)
+#   - clio-encryption-key   (64-char hex)
+#
+# Only needed if MCP_AUTH_MODE is set to static/hybrid:
 #   - clio-http-auth-tokens (comma-separated bearer tokens)
+#   - clio-refresh-token    (seeded from a one-time local OAuth dance)
 
 name: clio-mcp
 metadata:
@@ -35,11 +39,21 @@ hooks:
     interactive: false
     run: |
       echo ""
-      echo "Provisioning complete."
+      echo "Provisioning complete — deployed as a per-user OAuth remote custom connector (MCP_AUTH_MODE=oauth)."
+      echo ""
+      echo "Required Key Vault secrets (only these 3 in oauth mode):"
+      echo "  - clio-client-id"
+      echo "  - clio-client-secret"
+      echo "  - clio-encryption-key   (64-char hex)"
+      echo "See docs/deployment-azure.md for the 'az keyvault secret set' commands."
       echo ""
       echo "Next steps:"
-      echo "  1. Populate Key Vault with secrets — see docs/deployment-azure.md."
-      echo "  2. Configure Clio Developer Application redirect URI:"
-      echo "       http://127.0.0.1:5678/callback   (for the one-time local OAuth)"
-      echo "  3. Run the local OAuth dance once and seed clio-refresh-token from the result."
+      echo "  1. On your Clio Developer Application, register the redirect URI shown in the"
+      echo "     'CLIO_OAUTH_REDIRECT_URI' output above (i.e. <PUBLIC_BASE_URL>/oauth/clio/callback)."
+      echo "  2. In Claude, add a custom connector and paste the 'SERVICE_API_MCP_ENDPOINT' output"
+      echo "     (i.e. <PUBLIC_BASE_URL>/mcp), then sign in to Clio when prompted."
+      echo ""
+      echo "Note: clio-http-auth-tokens / clio-refresh-token are only required if you set"
+      echo "      MCP_AUTH_MODE to 'static' or 'hybrid' (then also register"
+      echo "      http://127.0.0.1:5678/callback for the one-time local OAuth dance)."
       echo ""
