@@ -59,13 +59,21 @@ export class OAuthFlow {
     }
 
     const code = await codePromise;
-    const tokens = await this.exchangeCode(code, redirect);
-    await this.storage.save(tokens);
-    log.info("authorization complete; tokens persisted (encrypted)");
+    const tokens = await this.exchangeCodeForTokens(code, redirect);
+    log.info("authorization complete");
     return tokens;
   }
 
-  /** Use the saved refresh token to mint a new access token. */
+  /**
+   * Exchange a refresh token for a fresh access token.
+   *
+   * Pure: this does NOT persist anything. Persistence is the caller's
+   * responsibility (the {@link import("../clio/client.js").ClioClient} writes
+   * the rotated tokens back through its injected token provider — to disk for
+   * the shared account, or into the per-user session record for OAuth
+   * sessions). Keeping this side-effect-free is what lets one shared, stateless
+   * OAuthFlow serve every tenant.
+   */
   async refresh(refreshToken: string): Promise<TokenSet> {
     const res = await fetch(this.cfg.tokenUrl, {
       method: "POST",
@@ -86,18 +94,26 @@ export class OAuthFlow {
       );
     }
     const json = (await res.json()) as TokenResponse;
-    const tokens: TokenSet = {
+    return {
       access_token: json.access_token,
       refresh_token: json.refresh_token ?? refreshToken,
       expires_at: Date.now() + json.expires_in * 1000,
       token_type: json.token_type,
       user_id: json.user_id,
     };
-    await this.storage.save(tokens);
-    return tokens;
   }
 
-  private async exchangeCode(code: string, redirect: string): Promise<TokenSet> {
+  /**
+   * Exchange a Clio authorization code for tokens.
+   *
+   * Used both by the loopback {@link authorize} flow (stdio) and by the remote
+   * OAuth bridge's Clio callback (`/oauth/clio/callback`), which passes the
+   * connector's own redirect URI (`${PUBLIC_BASE_URL}/oauth/clio/callback`).
+   * The `redirect` MUST match the value sent on the authorize request and a
+   * Redirect URI registered on the Clio Developer Application. Pure — does not
+   * persist.
+   */
+  async exchangeCodeForTokens(code: string, redirect: string): Promise<TokenSet> {
     const res = await fetch(this.cfg.tokenUrl, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },

@@ -8,6 +8,61 @@ import type { ClioErrorBody, ClioListResponse, ClioSingleResponse } from "./type
 const REFRESH_SKEW_MS = 60_000; // refresh 60s before nominal expiry
 const MAX_RETRIES = 3;
 
+/**
+ * The token source/sink a {@link ClioClient} reads from and writes back to.
+ *
+ * Decoupling the client from a concrete store is what makes the server
+ * multi-tenant: the same request/retry/refresh logic serves both the
+ * single-account stdio/static deployment and the per-user OAuth sessions.
+ *
+ *   - stdio / static-shared : a {@link DiskTokenProvider} backed by the
+ *     on-disk encrypted {@link TokenStorage} (one shared Clio account).
+ *   - OAuth session          : a provider whose `get`/`set` read and persist
+ *     the Clio tokens stored inside that user's encrypted session record, so
+ *     Clio refresh-token rotation survives across requests and replicas.
+ *
+ * `set` is async because persistence may hit disk (or shared Azure Files).
+ */
+export interface TokenProvider {
+  /** Current Clio tokens, or null if this provider has none yet. */
+  get(): TokenSet | null;
+  /** Persist rotated Clio tokens back to the underlying store. */
+  set(tokens: TokenSet): Promise<void>;
+}
+
+/**
+ * Disk-backed provider used by stdio and static-shared HTTP mode.
+ *
+ * Holds the single shared account's tokens in memory and mirrors every
+ * rotation to the encrypted token blob on disk — preserving the exact
+ * behaviour the server had before multi-tenancy, including
+ * CLIO_BOOTSTRAP_REFRESH_TOKEN seeding (see {@link ClioClient.init}).
+ */
+export class DiskTokenProvider implements TokenProvider {
+  private tokens: TokenSet | null = null;
+
+  constructor(private readonly storage: TokenStorage) {}
+
+  get(): TokenSet | null {
+    return this.tokens;
+  }
+
+  async set(tokens: TokenSet): Promise<void> {
+    this.tokens = tokens;
+    await this.storage.save(tokens);
+  }
+
+  /** In-memory only assignment used when loading the initial blob. */
+  hydrate(tokens: TokenSet | null): void {
+    this.tokens = tokens;
+  }
+
+  async clear(): Promise<void> {
+    await this.storage.clear();
+    this.tokens = null;
+  }
+}
+
 export interface RequestOptions {
   method?: "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
   query?: Record<string, string | number | boolean | undefined | null>;
@@ -19,27 +74,45 @@ export interface RequestOptions {
 }
 
 export class ClioClient {
-  private tokens: TokenSet | null = null;
-
+  /**
+   * @param cfg      shared, immutable configuration.
+   * @param oauth    shared, stateless OAuth helper (used only for `refresh`).
+   * @param tokens   per-client token source/sink. For stdio/static this is a
+   *                 shared {@link DiskTokenProvider}; for OAuth sessions it is
+   *                 a thin per-request provider over the session record.
+   *
+   * Construction is intentionally cheap (no I/O) so a fresh client can be
+   * built for every HTTP request.
+   */
   constructor(
     private readonly cfg: Config,
-    private readonly storage: TokenStorage,
     private readonly oauth: OAuthFlow,
+    private readonly tokens: TokenProvider,
   ) {}
 
+  /**
+   * Load the shared account's tokens from disk (stdio / static mode).
+   *
+   * Only meaningful for a {@link DiskTokenProvider}; session-backed clients
+   * already carry their tokens and never call this. Preserves the original
+   * bootstrap-from-refresh-token behaviour for headless deployments.
+   */
   async init(): Promise<void> {
-    this.tokens = await this.storage.load();
-    if (this.tokens) {
+    if (!(this.tokens instanceof DiskTokenProvider)) return;
+    const loaded = await new TokenStorage(this.cfg).load();
+    if (loaded) {
+      this.tokens.hydrate(loaded);
       log.info("loaded encrypted tokens from disk", {
         path: this.cfg.tokensPath,
-        expires_at: new Date(this.tokens.expires_at).toISOString(),
+        expires_at: new Date(loaded.expires_at).toISOString(),
       });
       return;
     }
     if (this.cfg.bootstrapRefreshToken) {
       log.info("no token blob on disk — bootstrapping from CLIO_BOOTSTRAP_REFRESH_TOKEN");
       try {
-        this.tokens = await this.oauth.refresh(this.cfg.bootstrapRefreshToken);
+        const refreshed = await this.oauth.refresh(this.cfg.bootstrapRefreshToken);
+        await this.tokens.set(refreshed);
         log.info("bootstrap successful; encrypted token blob written", {
           path: this.cfg.tokensPath,
         });
@@ -53,39 +126,52 @@ export class ClioClient {
   }
 
   isAuthenticated(): boolean {
-    return this.tokens !== null;
+    return this.tokens.get() !== null;
   }
 
   currentUserId(): number | undefined {
-    return this.tokens?.user_id;
+    return this.tokens.get()?.user_id;
   }
 
   tokenExpiresAt(): Date | null {
-    return this.tokens ? new Date(this.tokens.expires_at) : null;
+    const t = this.tokens.get();
+    return t ? new Date(t.expires_at) : null;
   }
 
+  /**
+   * Run the loopback authorize flow and persist the result (stdio only).
+   * Session-backed clients never call this — their tokens come from the
+   * connector OAuth bridge.
+   */
   async authenticate(): Promise<TokenSet> {
-    this.tokens = await this.oauth.authorize();
-    return this.tokens;
+    const tokens = await this.oauth.authorize();
+    await this.tokens.set(tokens);
+    return tokens;
   }
 
   async logout(): Promise<void> {
-    await this.storage.clear();
-    this.tokens = null;
+    if (this.tokens instanceof DiskTokenProvider) {
+      await this.tokens.clear();
+    }
   }
 
   private async ensureFreshToken(): Promise<string> {
-    if (!this.tokens) {
+    const current = this.tokens.get();
+    if (!current) {
       throw new AuthError(
         "not authenticated",
-        "Call the `clio_authenticate` tool (local stdio mode) or seed CLIO_REFRESH_TOKEN at deploy time.",
+        "On local stdio, run the `clio_authenticate` tool. On the remote connector, " +
+          "authenticate through the connector's OAuth sign-in. For static/shared HTTP mode, " +
+          "seed CLIO_BOOTSTRAP_REFRESH_TOKEN at deploy time.",
       );
     }
-    if (Date.now() >= this.tokens.expires_at - REFRESH_SKEW_MS) {
+    if (Date.now() >= current.expires_at - REFRESH_SKEW_MS) {
       log.debug("refreshing access token");
-      this.tokens = await this.oauth.refresh(this.tokens.refresh_token);
+      const refreshed = await this.oauth.refresh(current.refresh_token);
+      await this.tokens.set(refreshed);
+      return refreshed.access_token;
     }
-    return this.tokens.access_token;
+    return current.access_token;
   }
 
   /**
@@ -138,10 +224,12 @@ export class ClioClient {
         }
         if (res.status === 401) {
           // Token may have been revoked mid-request; try one refresh.
-          if (attempt === 1 && this.tokens) {
+          const current = this.tokens.get();
+          if (attempt === 1 && current) {
             log.info("got 401, refreshing token and retrying once");
-            this.tokens = await this.oauth.refresh(this.tokens.refresh_token);
-            headers.Authorization = `Bearer ${this.tokens.access_token}`;
+            const refreshed = await this.oauth.refresh(current.refresh_token);
+            await this.tokens.set(refreshed);
+            headers.Authorization = `Bearer ${refreshed.access_token}`;
             continue;
           }
         }

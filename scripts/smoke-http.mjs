@@ -22,6 +22,10 @@ const env = {
   CLIO_HTTP_PORT: String(PORT),
   CLIO_HTTP_HOST: "127.0.0.1",
   CLIO_HTTP_AUTH_TOKENS: TOKEN,
+  // This script exercises the shared static-bearer path; pin the mode so it
+  // does not require PUBLIC_BASE_URL (the OAuth/hybrid modes do — see
+  // scripts/smoke-oauth.mjs for end-to-end coverage of the connector flow).
+  MCP_AUTH_MODE: "static",
   LOG_LEVEL: "warn",
 };
 
