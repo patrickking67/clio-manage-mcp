@@ -4,12 +4,21 @@
 [![Node ≥ 20](https://img.shields.io/badge/node-%E2%89%A520-339933.svg)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6.svg)](https://www.typescriptlang.org)
 [![MCP](https://img.shields.io/badge/MCP-1.x-7c3aed.svg)](https://modelcontextprotocol.io)
-[![Build](https://github.com/patrickking67/clio-mcp/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/patrickking67/clio-mcp/actions/workflows/build.yml)
+[![Build](https://github.com/patrickking67/clio-manage-mcp/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/patrickking67/clio-manage-mcp/actions/workflows/build.yml)
 [![Status: beta](https://img.shields.io/badge/status-beta-orange.svg)](#roadmap)
 
-> A Model Context Protocol server for **Clio Manage** — deployed on Azure as a
-> **per-user remote OAuth connector** for Claude, with a full-featured local
-> stdio path for development and solo use. Same binary, two ways to connect.
+> **Run your law practice from a chat box.** A Model Context Protocol server that
+> connects **Clio Manage** to Claude as a secure, **per-user remote OAuth connector** —
+> ask in plain English and your matters, time, billing, calendar, and documents
+> answer back. Deploy it to Azure in one command, or run it locally over stdio.
+
+<p align="center">
+  <a href="#quick-start--azure-remote-connector"><b>🚀 Deploy to Azure</b></a> &nbsp;·&nbsp;
+  <a href="#how-connecting-works">Add to Claude</a> &nbsp;·&nbsp;
+  <a href="#tool-catalog">41 tools</a> &nbsp;·&nbsp;
+  <a href="#security--compliance-posture">Security</a> &nbsp;·&nbsp;
+  <a href="https://patrickking67.github.io/clio-manage-mcp/">Live site ↗</a>
+</p>
 
 **Built with**
 
@@ -24,13 +33,25 @@
 ![OAuth 2.1](https://img.shields.io/badge/OAuth_2.1-EB5424?style=for-the-badge&logo=oauth&logoColor=white)
 ![AES-256-GCM](https://img.shields.io/badge/AES--256--GCM-1a7f37?style=for-the-badge&logo=keepassxc&logoColor=white)
 
-This server is the boundary between an AI agent (Claude or any
-MCP-compatible client) and your firm's Clio Manage instance. It speaks Clio
-v4 fluently — matters, contacts, activities, tasks, notes, calendar,
-documents, bills — and exposes it as a **remote custom connector**: each
-attorney adds one URL in Claude, signs in to **their own** Clio account, and
-is connected. Tokens are encrypted at rest, every tool call is audited, and
-nothing about a user's Clio data is shared with anyone else's session.
+This server is the boundary between an AI agent (Claude, or any MCP client) and
+your firm's Clio Manage instance. It speaks Clio v4 fluently — matters, contacts,
+time, tasks, notes, calendar, documents, bills — and exposes it as a **remote
+custom connector**: each attorney adds one URL in Claude, signs in to **their
+own** Clio account, and is connected. Tokens are encrypted at rest, every tool
+call is audited, and one user's Clio data is never visible to another's session.
+
+### The one-minute version
+
+```text
+azd up                                  # 1 · deploy to Azure Container Apps (OAuth by default)
+#  → in Claude: Settings → Connectors → Add custom connector
+#  → paste  https://<your-app>.azurecontainerapps.io/mcp
+#  → each attorney signs in to their OWN Clio account   →   connected
+```
+
+No API keys to hand around and no shared login: Claude does discovery →
+registration → PKCE, then the user signs in on Clio's own domain. Prefer to stay
+local? The same binary runs over stdio for solo and development use.
 
 **What's in the box**
 
@@ -398,8 +419,8 @@ Details: [docs/deployment-azure.md](docs/deployment-azure.md) and
 > Development, single-user, or seeding a shared-account refresh token for static mode.
 
 ```bash
-git clone https://github.com/patrickking67/clio-mcp.git
-cd clio-mcp
+git clone https://github.com/patrickking67/clio-manage-mcp.git
+cd clio-manage-mcp
 npm install
 npm run build
 cp .env.example .env
